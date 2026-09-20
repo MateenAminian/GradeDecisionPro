@@ -1,59 +1,87 @@
 import React from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
-
+import { Tabs } from 'expo-router';
 import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+    <View style={styles.tabsRoot}>
+      <Tabs
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: Colors.dark.background,
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 0,
+          },
+          headerTintColor: Colors.dark.text,
+          headerTitleStyle: { fontWeight: '700', fontSize: 18 },
+          sceneStyle: { flex: 1, backgroundColor: Colors.dark.background },
+          tabBarActiveTintColor: Colors.dark.accent,
+          tabBarInactiveTintColor: Colors.dark.tabIconDefault,
+          tabBarStyle: {
+            backgroundColor: Colors.dark.surface,
+            borderTopWidth: 1,
+            borderTopColor: Colors.dark.border,
+            height: Platform.OS === 'ios' ? 84 : 64,
+            paddingTop: 6,
+          },
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '600',
+            marginBottom: Platform.OS === 'ios' ? 0 : 8,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Decide',
+            headerShown: false,
+            tabBarIcon: ({ color }) => <FontAwesome name="calculator" size={18} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="analyze"
+          options={{
+            title: 'Analyze',
+            headerTitle: 'Scan cards',
+            tabBarIcon: ({ color }) => <FontAwesome name="camera" size={18} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="inventory"
+          options={{
+            title: 'Inventory',
+            headerTitle: 'Inventory',
+            tabBarIcon: ({ color }) => <FontAwesome name="th-large" size={18} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="batch"
+          options={{
+            title: 'Batch',
+            headerTitle: 'Batch Modeling',
+            tabBarIcon: ({ color }) => <FontAwesome name="th-list" size={18} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: 'Settings',
+            tabBarIcon: ({ color }) => <FontAwesome name="cog" size={18} color={color} />,
+          }}
+        />
+      </Tabs>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  tabsRoot: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+    ...(Platform.OS === 'web' ? { minHeight: '100vh' as unknown as number } : null),
+  },
+});
