@@ -66,6 +66,8 @@ Hobby functions time out at 10s; card vision often needs longer. Use a Pro proje
 
 After the API is live, update the eBay Application Keys deletion endpoint to the hosted URL and Save so production keys stay enabled.
 
+If the **backend** project build log shows `npx expo export -p web`, Vercel is building the repo root (the web app). In that project: Settings → General → Root Directory → `backend` → Save → Redeploy. The web project stays at Root Directory `.`.
+
 ## Decision rules
 
 1. **SELL RAW** — expected profit ≤ 0, or even a PSA 10 misses break-even.
