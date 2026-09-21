@@ -6,20 +6,54 @@ import { analyzeBatchImages, lookupEbayComps } from '@/api/client';
 import { persistImageUri } from '@/utils/persistImage';
 import { analysisTitle } from '@/data/cardDisplay';
 import { PLACEHOLDER_COMPS, createManualInventoryCard, metadataFromLabel, rebuildInventoryCard } from '@/data/inventoryCard';
-import type { BatchCard, CardAnalysisResult, CardMetadata, CompPrices, GradeProbabilities, InventoryCard } from '@/data/types';
+import { DEFAULT_TIER_ID, getTier } from '@/data/graders';
+import {
+  DEFAULT_ASKING_HAIRCUT_PCT,
+  DEFAULT_DAYS_TO_SELL,
+  DEFAULT_MARKETPLACE_FEE_PCT,
+  DEFAULT_PAYMENT_FEE_PCT,
+  DEFAULT_TAX_PCT,
+} from '@/data/marketplace';
+import type {
+  BatchCard,
+  CardAnalysisResult,
+  CardMetadata,
+  CompPrices,
+  DecideHistoryEntry,
+  GradeProbabilities,
+  InventoryCard,
+  InventoryLifecycle,
+} from '@/data/types';
 
 const modernMint = presetProfiles.find((p) => p.id === 'modern-mint') ?? presetProfiles[0];
+const defaultTier = getTier(DEFAULT_TIER_ID);
 
 export const DEFAULT_SETTINGS = {
-  gradingFee: 50,
+  gradingFee: defaultTier.fee,
   shippingCost: 15,
-  turnaroundDays: 45,
+  turnaroundDays: defaultTier.turnaroundDays,
+  selectedTierId: DEFAULT_TIER_ID,
+  marketplaceFeePct: DEFAULT_MARKETPLACE_FEE_PCT,
+  paymentFeePct: DEFAULT_PAYMENT_FEE_PCT,
+  taxPct: DEFAULT_TAX_PCT,
+  askingHaircutPct: DEFAULT_ASKING_HAIRCUT_PCT,
+  applyAskingHaircut: true,
+  daysToSell: DEFAULT_DAYS_TO_SELL,
+  applyMarketplaceFees: true,
 };
 
 interface AppState {
   gradingFee: number;
   shippingCost: number;
   turnaroundDays: number;
+  selectedTierId: string;
+  marketplaceFeePct: number;
+  paymentFeePct: number;
+  taxPct: number;
+  askingHaircutPct: number;
+  applyAskingHaircut: boolean;
+  daysToSell: number;
+  applyMarketplaceFees: boolean;
 
   rawValue: number;
   cardName: string;
@@ -28,9 +62,11 @@ interface AppState {
   psa8Comp: number;
   below8Comp: number;
   selectedProfile: string;
+  compareProfileId: string | null;
   probabilities: GradeProbabilities;
   priceDropPct: number;
   gradeVariance: number;
+  declaredValue: number;
 
   batchCards: BatchCard[];
 
@@ -38,20 +74,46 @@ interface AppState {
   isAnalyzingBatch: boolean;
   batchError: string | null;
   inventory: InventoryCard[];
+  decideHistory: DecideHistoryEntry[];
 
-  setCosts: (costs: Partial<Pick<AppState, 'gradingFee' | 'shippingCost' | 'turnaroundDays'>>) => void;
-  setCalculator: (patch: Partial<Pick<AppState,
-    | 'rawValue'
-    | 'cardName'
-    | 'psa10Comp'
-    | 'psa9Comp'
-    | 'psa8Comp'
-    | 'below8Comp'
-    | 'selectedProfile'
-    | 'probabilities'
-    | 'priceDropPct'
-    | 'gradeVariance'
-  >>) => void;
+  setCosts: (
+    costs: Partial<
+      Pick<
+        AppState,
+        | 'gradingFee'
+        | 'shippingCost'
+        | 'turnaroundDays'
+        | 'selectedTierId'
+        | 'marketplaceFeePct'
+        | 'paymentFeePct'
+        | 'taxPct'
+        | 'askingHaircutPct'
+        | 'applyAskingHaircut'
+        | 'daysToSell'
+        | 'applyMarketplaceFees'
+      >
+    >,
+  ) => void;
+  applyServiceTier: (tierId: string) => void;
+  setCalculator: (
+    patch: Partial<
+      Pick<
+        AppState,
+        | 'rawValue'
+        | 'cardName'
+        | 'psa10Comp'
+        | 'psa9Comp'
+        | 'psa8Comp'
+        | 'below8Comp'
+        | 'selectedProfile'
+        | 'compareProfileId'
+        | 'probabilities'
+        | 'priceDropPct'
+        | 'gradeVariance'
+        | 'declaredValue'
+      >
+    >,
+  ) => void;
   setProfile: (profileId: string) => void;
   addCurrentToBatch: (snapshot?: Partial<Pick<BatchCard, 'name' | 'rawValue' | 'probabilities' | 'profileId' | 'compPrices'>>) => string;
   addBatchCard: (card: Omit<BatchCard, 'id' | 'included'> & { included?: boolean }, metadata?: CardMetadata) => void;
@@ -72,7 +134,18 @@ interface AppState {
   removeInventoryCard: (id: string) => void;
   updateInventoryMetadata: (id: string, metadata: CardMetadata) => void;
   updateInventoryModeling: (id: string, patch: { rawValue?: number; prices?: CompPrices }) => void;
+  updateInventoryLifecycle: (
+    id: string,
+    patch: {
+      lifecycle?: InventoryLifecycle;
+      returnedGrade?: string | null;
+      soldPrice?: number | null;
+      predictedEvAtDecide?: number | null;
+    },
+  ) => void;
   refreshInventoryComps: (id: string, metadata?: CardMetadata) => Promise<void>;
+  saveDecideSnapshot: (entry: Omit<DecideHistoryEntry, 'id' | 'savedAt'>) => void;
+  clearDecideHistory: () => void;
   resetExample: () => void;
 }
 
@@ -87,16 +160,27 @@ export const useAppStore = create<AppState>()(
       psa8Comp: PLACEHOLDER_COMPS.psa8,
       below8Comp: PLACEHOLDER_COMPS.below8,
       selectedProfile: modernMint.id,
+      compareProfileId: null,
       probabilities: { ...modernMint.probabilities },
       priceDropPct: 0,
       gradeVariance: 0,
+      declaredValue: 0,
       batchCards: [],
       batchAnalysisResults: [],
       isAnalyzingBatch: false,
       batchError: null,
       inventory: [],
+      decideHistory: [],
 
       setCosts: (costs) => set(costs),
+      applyServiceTier: (tierId) => {
+        const tier = getTier(tierId);
+        set({
+          selectedTierId: tier.id,
+          gradingFee: tier.fee,
+          turnaroundDays: tier.turnaroundDays,
+        });
+      },
       setCalculator: (patch) => set(patch),
 
       setProfile: (profileId) => {
@@ -272,6 +356,7 @@ export const useAppStore = create<AppState>()(
             reasoning: result.reasoning ?? [],
             evResult: result.evResult,
             comps: result.comps,
+            lifecycle: 'modeled',
           });
         }
         set({ inventory: [...cards, ...get().inventory] });
@@ -380,9 +465,13 @@ export const useAppStore = create<AppState>()(
           fallback: card.comps?.prices ?? PLACEHOLDER_COMPS,
           refresh: true,
         });
+        const withBasis = {
+          ...snapshot,
+          basis: snapshot.source?.startsWith('ebay') ? 'asking' : snapshot.source || 'manual',
+        };
         const next = rebuildInventoryCard(card, {
           metadata: meta,
-          comps: snapshot,
+          comps: withBasis,
           estimatedRawValue: snapshot.raw && snapshot.raw > 0 ? snapshot.raw : card.estimatedRawValue,
           gradingFee: s.gradingFee,
           shippingCost: s.shippingCost,
@@ -392,6 +481,32 @@ export const useAppStore = create<AppState>()(
           inventory: get().inventory.map((item) => (item.id === id ? next : item)),
         });
       },
+
+      updateInventoryLifecycle: (id, patch) => {
+        set({
+          inventory: get().inventory.map((card) =>
+            card.id === id
+              ? {
+                  ...card,
+                  ...patch,
+                  submittedAt:
+                    patch.lifecycle === 'submitted' ? Date.now() : card.submittedAt,
+                }
+              : card,
+          ),
+        });
+      },
+
+      saveDecideSnapshot: (entry) => {
+        const row: DecideHistoryEntry = {
+          ...entry,
+          id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          savedAt: Date.now(),
+        };
+        set({ decideHistory: [row, ...get().decideHistory].slice(0, 50) });
+      },
+
+      clearDecideHistory: () => set({ decideHistory: [] }),
 
       resetExample: () =>
         set({
@@ -403,18 +518,28 @@ export const useAppStore = create<AppState>()(
           psa8Comp: PLACEHOLDER_COMPS.psa8,
           below8Comp: PLACEHOLDER_COMPS.below8,
           selectedProfile: modernMint.id,
+          compareProfileId: null,
           probabilities: { ...modernMint.probabilities },
           priceDropPct: 0,
           gradeVariance: 0,
+          declaredValue: 0,
         }),
     }),
     {
-      name: 'gdp-mvp-v1',
+      name: 'gdp-mvp-v2',
       storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         gradingFee: state.gradingFee,
         shippingCost: state.shippingCost,
         turnaroundDays: state.turnaroundDays,
+        selectedTierId: state.selectedTierId,
+        marketplaceFeePct: state.marketplaceFeePct,
+        paymentFeePct: state.paymentFeePct,
+        taxPct: state.taxPct,
+        askingHaircutPct: state.askingHaircutPct,
+        applyAskingHaircut: state.applyAskingHaircut,
+        daysToSell: state.daysToSell,
+        applyMarketplaceFees: state.applyMarketplaceFees,
         rawValue: state.rawValue,
         cardName: state.cardName,
         psa10Comp: state.psa10Comp,
@@ -422,11 +547,14 @@ export const useAppStore = create<AppState>()(
         psa8Comp: state.psa8Comp,
         below8Comp: state.below8Comp,
         selectedProfile: state.selectedProfile,
+        compareProfileId: state.compareProfileId,
         probabilities: state.probabilities,
         priceDropPct: state.priceDropPct,
         gradeVariance: state.gradeVariance,
+        declaredValue: state.declaredValue,
         batchCards: state.batchCards,
         inventory: state.inventory,
+        decideHistory: state.decideHistory,
       }),
     },
   ),

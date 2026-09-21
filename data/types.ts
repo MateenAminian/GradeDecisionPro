@@ -1,4 +1,6 @@
-export type Recommendation = 'GRADE' | 'SELL_RAW' | 'HOLD';
+export type Recommendation = 'GRADE' | 'SELL_RAW' | 'HOLD' | 'NEED_COMPS';
+
+export type InventoryLifecycle = 'modeled' | 'submitted' | 'returned' | 'sold';
 
 export interface GradeProbabilities {
   psa10: number;
@@ -39,6 +41,8 @@ export interface CompSnapshot {
   fetchedAt?: string | null;
   raw?: number | null;
   listings?: CompListing[];
+  /** asking | sold | manual | asking-haircut */
+  basis?: string;
 }
 
 export interface EVInput {
@@ -50,10 +54,26 @@ export interface EVInput {
   compPrices: CompPrices;
   /** Annual opportunity-cost rate on locked capital. Default 5%. */
   capitalRate?: number;
+  /** Marketplace + payment + tax drag on sale proceeds (0–1 multiplier already applied via fees). */
+  marketplaceFeePct?: number;
+  paymentFeePct?: number;
+  taxPct?: number;
+  /** Extra days assumed to sell after graded card returns. */
+  daysToSell?: number;
+  /** Declared value for upcharge modeling. Defaults to max PSA 10/9 comps. */
+  declaredValue?: number;
+  /** Tier declared-value limit before upcharge. */
+  declaredValueLimit?: number;
+  /** Flat upcharge added to fee when DV exceeds limit. */
+  upchargeEstimate?: number;
+  /** Comp basis label for reasoning (asking / sold / haircut). */
+  compBasis?: string;
 }
 
 export interface EVResult {
   expectedValue: number;
+  /** Gross probability-weighted sale before sell-side fees. */
+  grossExpectedValue: number;
   expectedProfit: number;
   netProfit: number;
   breakEvenGrade: string;
@@ -67,6 +87,10 @@ export interface EVResult {
   recommendation: Recommendation;
   reasoning: string[];
   probabilitiesNormalized: boolean;
+  insufficientComps: boolean;
+  upchargeApplied: number;
+  marketplaceFeeAmount: number;
+  warnings: string[];
 }
 
 export interface PresetProfile {
@@ -164,6 +188,11 @@ export interface InventoryCard {
   reasoning: string[];
   evResult?: EVResult | null;
   comps?: CompSnapshot | null;
+  lifecycle?: InventoryLifecycle;
+  submittedAt?: number | null;
+  returnedGrade?: string | null;
+  soldPrice?: number | null;
+  predictedEvAtDecide?: number | null;
 }
 
 export interface AnalyzeBatchResponse {
@@ -181,4 +210,16 @@ export interface AnalyzeBatchOptions {
   psa9Comp: number;
   psa8Comp: number;
   below8Comp: number;
+}
+
+export interface DecideHistoryEntry {
+  id: string;
+  savedAt: number;
+  cardName: string;
+  recommendation: Recommendation | string;
+  expectedValue: number;
+  expectedProfit: number;
+  rawValue: number;
+  gradingFee: number;
+  comps: CompPrices;
 }

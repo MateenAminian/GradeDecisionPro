@@ -3,7 +3,7 @@ import type { Recommendation } from './types';
 
 const C = Colors.dark;
 
-export function getRecommendationStyle(rec: Recommendation | undefined) {
+export function getRecommendationStyle(rec: Recommendation | string | undefined) {
   switch (rec) {
     case 'GRADE':
       return {
@@ -25,6 +25,13 @@ export function getRecommendationStyle(rec: Recommendation | undefined) {
         color: C.accentYellow,
         gradient: [C.accentYellow, '#D97706'] as const,
         icon: 'dollar' as const,
+      };
+    case 'NEED_COMPS':
+      return {
+        label: 'NEED COMPS',
+        color: C.textMuted,
+        gradient: [C.textMuted, C.tabIconDefault] as const,
+        icon: 'info-circle' as const,
       };
     default:
       return {

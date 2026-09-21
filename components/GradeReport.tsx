@@ -94,10 +94,12 @@ export default function GradeReport({
             <RNView style={styles.section}>
               <Text style={styles.sectionLabel}>
                 {card.comps.source.startsWith('ebay')
-                  ? `LIVE EBAY ASKING · ${card.comps.listingCount} listings`
-                  : card.comps.source === 'manual' || card.comps.source.endsWith('-edited')
-                    ? 'MANUAL COMPS'
-                    : 'NO COMPS YET'}
+                  ? `LIVE EBAY ASKING · ${card.comps.listingCount} listings (not sold)`
+                  : card.comps.basis === 'sold'
+                    ? 'SOLD COMPS'
+                    : card.comps.source === 'manual' || card.comps.source.endsWith('-edited')
+                      ? 'MANUAL COMPS'
+                      : 'NO COMPS YET'}
               </Text>
               <RNView style={styles.probRow}>
                 {[

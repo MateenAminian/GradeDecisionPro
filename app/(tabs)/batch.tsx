@@ -13,6 +13,7 @@ import { getRecommendationStyle } from '@/data/recommendation';
 import { presetProfiles } from '@/data/presetProfiles';
 import { analysisTitle } from '@/data/cardDisplay';
 import { lightImpact, successNotification } from '@/utils/haptics';
+import { exportBatchCsv } from '@/utils/exportCsv';
 
 const C = Colors.dark;
 
@@ -35,6 +36,11 @@ export default function BatchScreen() {
     removeBatchCard,
     setBatchIncluded,
     addBatchCard,
+    applyMarketplaceFees,
+    marketplaceFeePct,
+    paymentFeePct,
+    taxPct,
+    daysToSell,
   } = useAppStore();
 
   const [showAdd, setShowAdd] = useState(false);
@@ -43,12 +49,13 @@ export default function BatchScreen() {
   const [cardSet, setCardSet] = useState('');
   const [parallel, setParallel] = useState('');
   const [cardNumber, setCardNumber] = useState('');
-  const [raw, setRaw] = useState('150');
-  const [c10, setC10] = useState('400');
-  const [c9, setC9] = useState('180');
-  const [c8, setC8] = useState('110');
-  const [c7, setC7] = useState('60');
+  const [raw, setRaw] = useState('');
+  const [c10, setC10] = useState('');
+  const [c9, setC9] = useState('');
+  const [c8, setC8] = useState('');
+  const [c7, setC7] = useState('');
   const [profileId, setProfileId] = useState('modern-mint');
+  const [addError, setAddError] = useState<string | null>(null);
 
   const { cards: evaluatedCards, summary } = useMemo(
     () =>
@@ -57,8 +64,22 @@ export default function BatchScreen() {
         gradingFee,
         shippingCost,
         turnaroundDays,
+        marketplaceFeePct: applyMarketplaceFees ? marketplaceFeePct : 0,
+        paymentFeePct: applyMarketplaceFees ? paymentFeePct : 0,
+        taxPct: applyMarketplaceFees ? taxPct : 0,
+        daysToSell,
       }),
-    [batchCards, gradingFee, shippingCost, turnaroundDays],
+    [
+      batchCards,
+      gradingFee,
+      shippingCost,
+      turnaroundDays,
+      applyMarketplaceFees,
+      marketplaceFeePct,
+      paymentFeePct,
+      taxPct,
+      daysToSell,
+    ],
   );
 
   const handleOptimize = () => {
@@ -70,7 +91,6 @@ export default function BatchScreen() {
   };
 
   const handleAdd = () => {
-    const profile = presetProfiles.find((p) => p.id === profileId) ?? presetProfiles[0];
     const metadata = {
       year: year.trim(),
       player: name.trim(),
@@ -78,6 +98,16 @@ export default function BatchScreen() {
       parallel: parallel.trim(),
       cardNumber: cardNumber.trim(),
     };
+    const hasIdentity =
+      Boolean(metadata.player) ||
+      (Boolean(metadata.set) && Boolean(metadata.cardNumber)) ||
+      Boolean(metadata.year && metadata.player);
+    if (!hasIdentity) {
+      setAddError('Add a player name, or set + card number, before creating a batch card.');
+      return;
+    }
+    setAddError(null);
+    const profile = presetProfiles.find((p) => p.id === profileId) ?? presetProfiles[0];
     const label = analysisTitle({ metadata }) || `Card ${batchCards.length + 1}`;
     addBatchCard(
       {
@@ -92,13 +122,18 @@ export default function BatchScreen() {
           below8: parseFloat(c7) || 0,
         },
       },
-      metadata.player || metadata.set ? metadata : undefined,
+      metadata,
     );
     setName('');
     setYear('');
     setCardSet('');
     setParallel('');
     setCardNumber('');
+    setRaw('');
+    setC10('');
+    setC9('');
+    setC8('');
+    setC7('');
     setShowAdd(false);
     lightImpact();
   };
@@ -112,7 +147,10 @@ export default function BatchScreen() {
         placeholder="Player name"
         placeholderTextColor={C.textMuted}
         value={name}
-        onChangeText={setName}
+        onChangeText={(v) => {
+          setName(v);
+          if (addError) setAddError(null);
+        }}
       />
       <RNView style={styles.addGrid}>
         <MiniInput label="Year" value={year} onChange={setYear} keyboardType="default" />
@@ -125,6 +163,7 @@ export default function BatchScreen() {
         <MiniInput label="PSA 8" value={c8} onChange={setC8} />
         <MiniInput label="Below 8" value={c7} onChange={setC7} />
       </RNView>
+      {addError ? <Text style={styles.addError}>{addError}</Text> : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
         {presetProfiles.filter((p) => p.id !== 'custom').map((p) => (
           <Pressable key={p.id} onPress={() => setProfileId(p.id)} accessibilityRole="button" accessibilityLabel={p.name}>
@@ -231,6 +270,13 @@ export default function BatchScreen() {
             colors={[C.accent, C.accentMuted]}
             size="small"
             style={{ flex: 1 }}
+          />
+          <GradientButton
+            onPress={() => exportBatchCsv(evaluatedCards)}
+            title="CSV"
+            outline
+            outlineColor={C.accent}
+            size="small"
           />
         </EnterView>
       )}
@@ -339,7 +385,7 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', justifyContent: 'center', padding: 32, maxWidth: 560, width: '100%', alignSelf: 'center' },
   emptyTitle: { fontSize: 20, fontWeight: '800', color: C.text, marginTop: 16, marginBottom: 8 },
   emptySub: { fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20 },
-  content: { padding: 20, paddingBottom: 40, maxWidth: 560, width: '100%', alignSelf: 'center' },
+  content: { padding: 20, paddingBottom: 40, maxWidth: 720, width: '100%', alignSelf: 'center' },
   title: { fontSize: 24, fontWeight: '800', color: C.text, marginBottom: 6 },
   subtitle: { fontSize: 13, color: C.textSecondary, lineHeight: 19, marginBottom: 20 },
   summaryCard: { borderRadius: 20, padding: 20, borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
@@ -385,6 +431,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.background, borderRadius: 10, padding: 12, color: C.text,
     fontSize: 15, marginBottom: 12, borderWidth: 0.5, borderColor: C.border,
   },
+  addError: { color: C.accentRed, fontSize: 12, marginBottom: 10, fontWeight: '600' },
   addGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   miniField: {
     flexGrow: 1, flexBasis: '30%', backgroundColor: C.background, borderRadius: 10,

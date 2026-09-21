@@ -13,6 +13,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { analysisTitle, gradeHeadline } from '@/data/cardDisplay';
 import { presetProfiles } from '@/data/presetProfiles';
 import { lightImpact } from '@/utils/haptics';
+import { exportInventoryCsv } from '@/utils/exportCsv';
 
 const C = Colors.dark;
 
@@ -138,6 +139,16 @@ export default function InventoryScreen() {
             ? `${inventory.length} card${inventory.length === 1 ? '' : 's'}. Tap one to scan eBay comps or edit prices.`
             : 'Add a card here, or scan a photo on Analyze. Batch cards also land here.'}
         </Text>
+        {inventory.length > 0 ? (
+          <GradientButton
+            onPress={() => exportInventoryCsv(inventory)}
+            title="Export CSV"
+            outline
+            outlineColor={C.accent}
+            size="small"
+            style={{ marginBottom: 12, alignSelf: 'flex-start' }}
+          />
+        ) : null}
       </EnterView>
 
       {showAdd ? addForm : (
@@ -202,7 +213,7 @@ function Field({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
-  content: { padding: 20, paddingBottom: 40, maxWidth: 560, width: '100%', alignSelf: 'center' },
+  content: { padding: 20, paddingBottom: 40, maxWidth: 720, width: '100%', alignSelf: 'center' },
   title: { fontSize: 24, fontWeight: '800', color: C.text, marginBottom: 6 },
   subtitle: { fontSize: 13, color: C.textSecondary, lineHeight: 19, marginBottom: 16 },
   empty: { alignItems: 'center', paddingVertical: 32, gap: 10 },
