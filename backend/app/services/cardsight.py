@@ -29,8 +29,8 @@ MAX_SAVED_LISTINGS = 40
 AUTO_RE = re.compile(r"\bauto(?:graph)?\b", re.I)
 PARALLEL_RE = re.compile(
     r"\b("
-    r"silver|gold|hyper|refractor|prizm|parallel|mojo|cracked\s+ice|"
-    r"checkerboard|wave|scope|pulsar|laser|holo|holographic|optic|"
+    r"silver|gold|hyper|refractor|parallel|mojo|cracked\s+ice|"
+    r"checkerboard|wave|scope|pulsar|laser|holo|holographic|"
     r"purple|blue|red|green|orange|pink|black|white|bronze|ruby|sapphire|"
     r"zebra|tiger|elephant|disco|shimmer|sparkle|speckle|velocity|choice"
     r")\b",
