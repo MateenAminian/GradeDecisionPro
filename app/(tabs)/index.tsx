@@ -28,18 +28,23 @@ function num(text: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Blank inputs for unset money fields so fresh users don't see seeded zeros as "data". */
+function moneyText(n: number): string {
+  return n > 0 ? String(n) : '';
+}
+
 export default function CalculatorScreen() {
   const store = useAppStore();
   const [addedFlash, setAddedFlash] = useState(false);
 
-  const [rawText, setRawText] = useState(String(store.rawValue));
+  const [rawText, setRawText] = useState(moneyText(store.rawValue));
   const [feeText, setFeeText] = useState(String(store.gradingFee));
   const [shipText, setShipText] = useState(String(store.shippingCost));
   const [daysText, setDaysText] = useState(String(store.turnaroundDays));
-  const [c10, setC10] = useState(String(store.psa10Comp));
-  const [c9, setC9] = useState(String(store.psa9Comp));
-  const [c8, setC8] = useState(String(store.psa8Comp));
-  const [c7, setC7] = useState(String(store.below8Comp));
+  const [c10, setC10] = useState(moneyText(store.psa10Comp));
+  const [c9, setC9] = useState(moneyText(store.psa9Comp));
+  const [c8, setC8] = useState(moneyText(store.psa8Comp));
+  const [c7, setC7] = useState(moneyText(store.below8Comp));
 
   useFocusEffect(
     useCallback(() => {
@@ -47,11 +52,11 @@ export default function CalculatorScreen() {
       setFeeText(String(s.gradingFee));
       setShipText(String(s.shippingCost));
       setDaysText(String(s.turnaroundDays));
-      setRawText(String(s.rawValue));
-      setC10(String(s.psa10Comp));
-      setC9(String(s.psa9Comp));
-      setC8(String(s.psa8Comp));
-      setC7(String(s.below8Comp));
+      setRawText(moneyText(s.rawValue));
+      setC10(moneyText(s.psa10Comp));
+      setC9(moneyText(s.psa9Comp));
+      setC8(moneyText(s.psa8Comp));
+      setC7(moneyText(s.below8Comp));
     }, []),
   );
 

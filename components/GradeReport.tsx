@@ -95,7 +95,9 @@ export default function GradeReport({
               <Text style={styles.sectionLabel}>
                 {card.comps.source.startsWith('ebay')
                   ? `LIVE EBAY ASKING · ${card.comps.listingCount} listings`
-                  : 'PLACEHOLDER COMPS'}
+                  : card.comps.source === 'manual' || card.comps.source.endsWith('-edited')
+                    ? 'MANUAL COMPS'
+                    : 'NO COMPS YET'}
               </Text>
               <RNView style={styles.probRow}>
                 {[
