@@ -2,11 +2,12 @@ import type { CardMetadata, CompPrices, CompSnapshot, GradeProbabilities, Invent
 import { calculateEV } from '@/data/evCalculator';
 import { analysisTitle } from '@/data/cardDisplay';
 
+/** Empty comps — never seed the UI with fake sample prices. */
 export const PLACEHOLDER_COMPS: CompPrices = {
-  psa10: 800,
-  psa9: 280,
-  psa8: 180,
-  below8: 120,
+  psa10: 0,
+  psa9: 0,
+  psa8: 0,
+  below8: 0,
 };
 
 export function emptyMetadata(): CardMetadata {
