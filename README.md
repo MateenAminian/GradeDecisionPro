@@ -51,6 +51,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `POST /api/v1/calculate-ev`
 - `POST /api/v1/calculate-batch-ev`
 - `POST /api/v1/analyze-batch`
+- `POST /api/v1/cardsight/comps`
 - `POST /api/v1/ebay/comps`
 
 Put keys in `backend/.env` (see `backend/.env.example`). Never commit that file.
@@ -59,7 +60,7 @@ Put keys in `backend/.env` (see `backend/.env.example`). Never commit that file.
 
 This repo deploys as **two Vercel projects** from the same GitHub repo:
 
-1. **API** — root directory `backend`. Framework: FastAPI. Env vars: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_ENV=production`, `EBAY_MARKETPLACE_ID=EBAY_US`, `EBAY_DELETION_VERIFICATION_TOKEN`, `EBAY_DELETION_ENDPOINT` (the public API URL + `/api/v1/ebay/marketplace-deletion`).
+1. **API** — root directory `backend`. Framework: FastAPI. Env vars: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `CARDSIGHTAI_API_KEY`, `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_ENV=production`, `EBAY_MARKETPLACE_ID=EBAY_US`, `EBAY_DELETION_VERIFICATION_TOKEN`, `EBAY_DELETION_ENDPOINT` (the public API URL + `/api/v1/ebay/marketplace-deletion`). Add `CARDSIGHTAI_API_KEY` only to the backend project so sold-auction comps never expose the key to Expo/web.
 2. **Web** — root directory `.` (repo root). Env var: `EXPO_PUBLIC_API_URL=https://<your-api-project>.vercel.app` (no trailing slash).
 
 Hobby functions time out at 10s; card vision often needs longer. Use a Pro project (60s) for the API, or scans may fail. Vercel also caps request bodies (~4.5MB on Hobby) — keep photos under that.

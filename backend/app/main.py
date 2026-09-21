@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-from app.routers import analyze, ebay, ev
+from app.routers import analyze, cardsight, ebay, ev
 from app.services.ebay_deletion import deletion_configured
 
 _on_vercel = os.getenv("VERCEL") == "1"
@@ -34,6 +34,7 @@ app.add_middleware(
 
 app.include_router(ev.router)
 app.include_router(analyze.router)
+app.include_router(cardsight.router)
 app.include_router(ebay.router)
 
 
@@ -42,6 +43,7 @@ async def health() -> dict[str, object]:
     return {
         "status": "ok",
         "visionConfigured": bool(os.getenv("OPENROUTER_API_KEY", "").strip()),
+        "cardsightConfigured": bool(os.getenv("CARDSIGHTAI_API_KEY", "").strip()),
         "ebayConfigured": bool(os.getenv("EBAY_CLIENT_ID", "").strip() and os.getenv("EBAY_CLIENT_SECRET", "").strip()),
         "ebayEnv": os.getenv("EBAY_ENV", "production").strip().lower() or "production",
         "ebayDeletionConfigured": deletion_configured(),

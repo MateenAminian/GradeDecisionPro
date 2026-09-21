@@ -195,3 +195,51 @@ export async function lookupEbayComps(
 
   return payload as CompSnapshot;
 }
+
+export async function lookupSoldComps(
+  meta: CardMetadata,
+  options?: { fallback?: CompPrices; refresh?: boolean },
+): Promise<CompSnapshot> {
+  const base = getApiBaseUrl();
+  let response: Response;
+  try {
+    response = await fetch(`${base}/api/v1/cardsight/comps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        year: meta.year ?? '',
+        player: meta.player ?? '',
+        set: meta.set ?? '',
+        cardNumber: meta.cardNumber ?? '',
+        parallel: meta.parallel ?? '',
+        refresh: options?.refresh ?? true,
+        fallback: options?.fallback,
+      }),
+    });
+  } catch {
+    throw new Error(
+      `Can't reach the analysis server at ${base}. Start the backend, then try again.`,
+    );
+  }
+
+  const text = await response.text();
+  let payload: CompSnapshot | { detail?: unknown };
+  try {
+    payload = JSON.parse(text) as CompSnapshot;
+  } catch {
+    throw new Error(response.ok ? 'The server returned an unreadable response' : `Sold comps failed (${response.status})`);
+  }
+
+  if (!response.ok) {
+    const detail = (payload as { detail?: unknown }).detail;
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((d) => (typeof d === 'object' && d && 'msg' in d ? String((d as { msg: string }).msg) : String(d))).join('; ')
+          : `Sold comps failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return payload as CompSnapshot;
+}

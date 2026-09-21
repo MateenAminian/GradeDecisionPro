@@ -55,8 +55,16 @@ function likelyFromProbs(p: GradeProbabilities): { likelyGrade: string; gradeRan
   return { likelyGrade: likely, gradeRange: likely };
 }
 
-function ebayNotes(snapshot: CompSnapshot): string[] {
+function compNotes(snapshot: CompSnapshot): string[] {
   const notes: string[] = [];
+  if (snapshot.basis === 'sold' || snapshot.source.startsWith('cardsight')) {
+    notes.push(
+      `Prices are CardSight sold-auction medians (${snapshot.listingCount} sales${snapshot.period ? `, ${snapshot.period}` : ''}).`,
+    );
+    if (snapshot.fallbackReason) {
+      notes.push(snapshot.fallbackReason);
+    }
+  }
   if (snapshot.source.startsWith('ebay')) {
     notes.push(
       `Prices are median live eBay asking prices (${snapshot.listingCount} listings). Not sold comps.`,
@@ -116,7 +124,7 @@ export function rebuildInventoryCard(
     recommendation: ev.recommendation,
     evResult: ev,
     comps,
-    reasoning: [...(comps ? ebayNotes(comps) : []), ...ev.reasoning],
+    reasoning: [...(comps ? compNotes(comps) : []), ...ev.reasoning],
   };
 }
 

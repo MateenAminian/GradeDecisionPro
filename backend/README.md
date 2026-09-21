@@ -22,12 +22,15 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | POST | `/api/v1/calculate-ev` | Time-adjusted EV + GRADE / SELL_RAW / HOLD |
 | POST | `/api/v1/calculate-batch-ev` | Batch EV (shipping allocated once across included cards) |
 | POST | `/api/v1/analyze-batch` | Multipart card photos → OpenRouter vision + EV report |
+| POST | `/api/v1/cardsight/comps` | CardSight sold-auction medians with eBay asking fallback |
+| POST | `/api/v1/ebay/comps` | eBay live asking medians |
 
-Vision analysis needs `OPENROUTER_API_KEY` in `backend/.env`. Copy `.env.example`. The Expo app posts to `EXPO_PUBLIC_API_URL` (default `http://localhost:8000`).
+Vision analysis needs `OPENROUTER_API_KEY` in `backend/.env`. Sold comps need `CARDSIGHTAI_API_KEY` in the backend/Vercel API project only; do not add it to Expo public env vars. Copy `.env.example`. The Expo app posts to `EXPO_PUBLIC_API_URL` (default `http://localhost:8000`).
 
 ## Tests
 
 ```bash
 PYTHONPATH=backend python3 backend/tests/test_ev_calculator.py
 PYTHONPATH=backend python3 backend/tests/test_openrouter_parse.py
+PYTHONPATH=backend python3 backend/tests/test_cardsight_comps.py
 ```
