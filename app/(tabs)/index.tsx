@@ -28,7 +28,7 @@ import type { CompPrices, GradeProbabilities } from '@/data/types';
 const C = Colors.dark;
 
 function num(text: string): number {
-  const n = parseFloat(text.replace(/[^0-9.]/g, ''));
+  const n = parseFloat(text.replace(/[^0-9.-]/g, ''));
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -78,13 +78,19 @@ export default function CalculatorScreen() {
   const rawValue = num(rawText);
   const gradingFee = num(feeText);
   const shippingCost = num(shipText);
-  const turnaroundDays = num(daysText) || 1;
+  const turnaroundDays = num(daysText);
   const tier = getTier(store.selectedTierId);
+  const membershipCards = Math.max(1, store.membershipCards || 1);
+  const membershipCostPerCard = Math.max(0, store.membershipFee || 0) / membershipCards;
 
   const enteredComps: CompPrices = useMemo(
     () => ({ psa10: num(c10), psa9: num(c9), psa8: num(c8), below8: num(c7) }),
     [c10, c9, c8, c7],
   );
+  const impliedDeclaredValue = Math.max(num(dvText), enteredComps.psa10, enteredComps.psa9, enteredComps.psa8, 0);
+  const upchargeTriggered = impliedDeclaredValue > tier.declaredValueLimit;
+  const thinLiquidity = store.daysToSell >= 45 || (store.recentSoldCount > 0 && store.recentSoldCount < 3);
+  const highPopLowLiquidity = store.psa10PopCount >= 1000 && (store.recentSoldCount === 0 || store.recentSoldCount < 5);
 
   const adjustedProbs = useMemo(
     () => applyGradeVariance(store.probabilities, store.gradeVariance),
@@ -123,6 +129,7 @@ export default function CalculatorScreen() {
         declaredValue: num(dvText) || undefined,
         declaredValueLimit: tier.declaredValueLimit,
         upchargeEstimate: tier.upchargeEstimate,
+        membershipCostPerCard,
         compBasis: haircut ? 'asking-haircut' : 'asking',
       }),
     [
@@ -140,6 +147,7 @@ export default function CalculatorScreen() {
       dvText,
       tier,
       haircut,
+      membershipCostPerCard,
     ],
   );
 
@@ -161,6 +169,7 @@ export default function CalculatorScreen() {
       declaredValue: num(dvText) || undefined,
       declaredValueLimit: tier.declaredValueLimit,
       upchargeEstimate: tier.upchargeEstimate,
+      membershipCostPerCard,
       compBasis: haircut ? 'asking-haircut' : 'asking',
     });
   }, [
@@ -179,6 +188,7 @@ export default function CalculatorScreen() {
     dvText,
     tier,
     haircut,
+    membershipCostPerCard,
   ]);
 
   const recStyle = getRecommendationStyle(display.recommendation);
@@ -190,6 +200,7 @@ export default function CalculatorScreen() {
     turnaroundDays,
     comps: enteredComps,
   });
+  const fieldError = (field: string) => warnings.find((w) => w.field === field)?.message;
 
   const persistAll = () => {
     store.setCalculator({
@@ -243,7 +254,8 @@ export default function CalculatorScreen() {
     setTimeout(() => setAddedFlash(false), 1800);
   };
 
-  const contentMax = wide ? 920 : 560;
+  const contentMax = wide ? 1120 : 560;
+  const wideFieldStyle = wide ? styles.gridFieldWide : undefined;
 
   return (
     <ScrollView
@@ -342,7 +354,7 @@ export default function CalculatorScreen() {
           </RNView>
         ))}
         {warnings.map((w) => (
-          <RNView key={w.message} style={styles.warnRow}>
+          <RNView key={`${w.field}-${w.message}`} style={styles.warnRow}>
             <FontAwesome name="exclamation-circle" size={12} color={C.accentRed} />
             <Text style={styles.warnText}>{w.message}</Text>
           </RNView>
@@ -406,6 +418,8 @@ export default function CalculatorScreen() {
             label="Raw Value"
             prefix="$"
             value={rawText}
+            error={fieldError('rawValue')}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setRawText(v);
@@ -420,6 +434,8 @@ export default function CalculatorScreen() {
             label="Grading Fee"
             prefix="$"
             value={feeText}
+            error={fieldError('gradingFee')}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setFeeText(v);
@@ -434,6 +450,8 @@ export default function CalculatorScreen() {
             label="Ship + Ins."
             prefix="$"
             value={shipText}
+            error={fieldError('shippingCost')}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setShipText(v);
@@ -448,6 +466,8 @@ export default function CalculatorScreen() {
             label="Turnaround"
             suffix=" days"
             value={daysText}
+            error={fieldError('turnaroundDays')}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setDaysText(v);
@@ -462,6 +482,7 @@ export default function CalculatorScreen() {
             label="Declared value"
             prefix="$"
             value={dvText}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setDvText(v);
@@ -472,6 +493,46 @@ export default function CalculatorScreen() {
             }}
             placeholder="Auto from PSA 10"
           />
+        </RNView>
+      </EnterView>
+
+      <EnterView entering={FadeInDown.delay(140).duration(400)}>
+        <Text style={styles.sectionTitle}>Membership & upcharge modeling</Text>
+        <RNView style={styles.infoPanel}>
+          <RNView style={styles.panelGrid}>
+            <NumberField
+              fieldKey="decide-membership-fee"
+              label="Collectors Club / membership"
+              prefix="$"
+              value={store.membershipFee > 0 ? String(store.membershipFee) : ''}
+              placeholder="Optional"
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCosts({ membershipFee: num(v) })}
+            />
+            <NumberField
+              fieldKey="decide-membership-cards"
+              label="Amortize over"
+              suffix=" cards"
+              value={String(store.membershipCards || 1)}
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCosts({ membershipCards: Math.max(1, num(v) || 1) })}
+            />
+          </RNView>
+          <RNView style={[styles.insightRow, upchargeTriggered ? styles.insightWarn : styles.insightOk]}>
+            <FontAwesome
+              name={upchargeTriggered ? 'exclamation-triangle' : 'check-circle'}
+              size={13}
+              color={upchargeTriggered ? C.accentYellow : C.accentGreen}
+            />
+            <Text style={styles.insightText}>
+              {upchargeTriggered
+                ? `Upcharge modeled: implied declared value $${impliedDeclaredValue.toFixed(0)} is above ${tier.name}'s $${tier.declaredValueLimit} limit, so $${tier.upchargeEstimate} is added.`
+                : `No upcharge modeled yet: implied declared value $${impliedDeclaredValue.toFixed(0)} is within ${tier.name}'s $${tier.declaredValueLimit} limit.`}
+            </Text>
+          </RNView>
+          <Text style={styles.panelHint}>
+            Membership adds ${membershipCostPerCard.toFixed(2)} per card to totals when a fee is entered.
+          </Text>
         </RNView>
       </EnterView>
 
@@ -487,6 +548,8 @@ export default function CalculatorScreen() {
             label="PSA 10"
             prefix="$"
             value={c10}
+            error={fieldError('psa10')}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setC10(v);
@@ -502,6 +565,8 @@ export default function CalculatorScreen() {
             label="PSA 9"
             prefix="$"
             value={c9}
+            error={fieldError('psa9')}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setC9(v);
@@ -517,6 +582,8 @@ export default function CalculatorScreen() {
             label="PSA 8"
             prefix="$"
             value={c8}
+            error={fieldError('psa8')}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setC8(v);
@@ -532,6 +599,8 @@ export default function CalculatorScreen() {
             label="Below 8"
             prefix="$"
             value={c7}
+            error={fieldError('below8')}
+            style={wideFieldStyle}
             onChangeText={(v) => {
               editingRef.current = true;
               setC7(v);
@@ -542,6 +611,72 @@ export default function CalculatorScreen() {
             }}
             accentColor={C.gradeBelow}
           />
+        </RNView>
+      </EnterView>
+
+      <EnterView entering={FadeInDown.delay(190).duration(400)}>
+        <Text style={styles.sectionTitle}>Sold comps & sales velocity</Text>
+        <RNView style={styles.infoPanel}>
+          <RNView style={styles.panelGrid}>
+            <NumberField
+              fieldKey="decide-days-to-sell"
+              label="Days to sell"
+              suffix=" days"
+              value={String(store.daysToSell)}
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCosts({ daysToSell: num(v) })}
+            />
+            <NumberField
+              fieldKey="decide-recent-sold"
+              label="Recent sold comps"
+              value={store.recentSoldCount > 0 ? String(store.recentSoldCount) : ''}
+              placeholder="Manual count"
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCalculator({ recentSoldCount: Math.max(0, num(v)) })}
+            />
+          </RNView>
+          <RNView style={[styles.insightRow, thinLiquidity ? styles.insightWarn : styles.insightOk]}>
+            <FontAwesome name={thinLiquidity ? 'hourglass-half' : 'line-chart'} size={13} color={thinLiquidity ? C.accentYellow : C.accentGreen} />
+            <Text style={styles.insightText}>
+              {thinLiquidity
+                ? `Thin liquidity overlay: modeled ${store.daysToSell} days to sell${store.recentSoldCount > 0 ? ` with only ${store.recentSoldCount} recent sold comp${store.recentSoldCount === 1 ? '' : 's'}` : ''}. EV may be slower than the headline.`
+                : `Velocity looks usable at ${store.daysToSell} days to sell. Sold comps remain safer than asking prices for go/no-go.`}
+            </Text>
+          </RNView>
+        </RNView>
+      </EnterView>
+
+      <EnterView entering={FadeInDown.delay(205).duration(400)}>
+        <Text style={styles.sectionTitle}>Pop report & liquidity overlay</Text>
+        <RNView style={styles.infoPanel}>
+          <RNView style={styles.panelGrid}>
+            <NumberField
+              fieldKey="decide-psa10-pop"
+              label="PSA 10 pop count"
+              value={store.psa10PopCount > 0 ? String(store.psa10PopCount) : ''}
+              placeholder="Manual pop"
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCalculator({ psa10PopCount: Math.max(0, num(v)) })}
+            />
+            <NumberField
+              fieldKey="decide-pop-sales"
+              label="Recent sales vs pop"
+              value={store.recentSoldCount > 0 ? String(store.recentSoldCount) : ''}
+              placeholder="Same sold count"
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCalculator({ recentSoldCount: Math.max(0, num(v)) })}
+            />
+          </RNView>
+          <RNView style={[styles.insightRow, highPopLowLiquidity ? styles.insightWarn : styles.insightNeutral]}>
+            <FontAwesome name="users" size={13} color={highPopLowLiquidity ? C.accentYellow : C.accent} />
+            <Text style={styles.insightText}>
+              {highPopLowLiquidity
+                ? `Flooded PSA 10 warning: pop ${store.psa10PopCount.toFixed(0)} with ${store.recentSoldCount || 0} recent sales can trap capital even when EV looks green.`
+                : store.psa10PopCount > 0
+                  ? `Pop overlay: PSA 10 population ${store.psa10PopCount.toFixed(0)}. Watch velocity before grading into crowded tiers.`
+                  : 'Manual MVP placeholder: enter PSA Pop Report count to surface crowded-tier warnings while a live Pop API is unavailable.'}
+            </Text>
+          </RNView>
         </RNView>
       </EnterView>
 
@@ -730,6 +865,30 @@ const styles = StyleSheet.create({
   nameWrap: { marginBottom: 10 },
   inputGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   inputGridWide: { gap: 12 },
+  gridFieldWide: { flexBasis: '30%', minWidth: 220 },
+  infoPanel: {
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    marginBottom: 20,
+    gap: 12,
+  },
+  panelGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  panelHint: { fontSize: 12, color: C.textMuted, lineHeight: 18 },
+  insightRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 0.5,
+  },
+  insightOk: { backgroundColor: C.accentGreen + '12', borderColor: C.accentGreen + '35' },
+  insightWarn: { backgroundColor: C.accentYellow + '12', borderColor: C.accentYellow + '40' },
+  insightNeutral: { backgroundColor: C.accent + '10', borderColor: C.accent + '30' },
+  insightText: { flex: 1, fontSize: 12, color: C.textSecondary, lineHeight: 18 },
   profileScroll: { marginBottom: 14 },
   profileChip: {
     backgroundColor: C.surface, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16,

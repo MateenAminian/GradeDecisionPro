@@ -40,6 +40,10 @@ export const DEFAULT_SETTINGS = {
   applyAskingHaircut: true,
   daysToSell: DEFAULT_DAYS_TO_SELL,
   applyMarketplaceFees: true,
+  membershipFee: 0,
+  membershipCards: 1,
+  psa10PopCount: 0,
+  recentSoldCount: 0,
 };
 
 interface AppState {
@@ -54,6 +58,8 @@ interface AppState {
   applyAskingHaircut: boolean;
   daysToSell: number;
   applyMarketplaceFees: boolean;
+  membershipFee: number;
+  membershipCards: number;
 
   rawValue: number;
   cardName: string;
@@ -67,6 +73,8 @@ interface AppState {
   priceDropPct: number;
   gradeVariance: number;
   declaredValue: number;
+  psa10PopCount: number;
+  recentSoldCount: number;
 
   batchCards: BatchCard[];
 
@@ -91,6 +99,8 @@ interface AppState {
         | 'applyAskingHaircut'
         | 'daysToSell'
         | 'applyMarketplaceFees'
+        | 'membershipFee'
+        | 'membershipCards'
       >
     >,
   ) => void;
@@ -111,6 +121,8 @@ interface AppState {
         | 'priceDropPct'
         | 'gradeVariance'
         | 'declaredValue'
+        | 'psa10PopCount'
+        | 'recentSoldCount'
       >
     >,
   ) => void;
@@ -165,6 +177,8 @@ export const useAppStore = create<AppState>()(
       priceDropPct: 0,
       gradeVariance: 0,
       declaredValue: 0,
+      psa10PopCount: 0,
+      recentSoldCount: 0,
       batchCards: [],
       batchAnalysisResults: [],
       isAnalyzingBatch: false,
@@ -523,6 +537,8 @@ export const useAppStore = create<AppState>()(
           priceDropPct: 0,
           gradeVariance: 0,
           declaredValue: 0,
+          psa10PopCount: 0,
+          recentSoldCount: 0,
         }),
     }),
     {
@@ -540,6 +556,8 @@ export const useAppStore = create<AppState>()(
         applyAskingHaircut: state.applyAskingHaircut,
         daysToSell: state.daysToSell,
         applyMarketplaceFees: state.applyMarketplaceFees,
+        membershipFee: state.membershipFee,
+        membershipCards: state.membershipCards,
         rawValue: state.rawValue,
         cardName: state.cardName,
         psa10Comp: state.psa10Comp,
@@ -552,6 +570,8 @@ export const useAppStore = create<AppState>()(
         priceDropPct: state.priceDropPct,
         gradeVariance: state.gradeVariance,
         declaredValue: state.declaredValue,
+        psa10PopCount: state.psa10PopCount,
+        recentSoldCount: state.recentSoldCount,
         batchCards: state.batchCards,
         inventory: state.inventory,
         decideHistory: state.decideHistory,

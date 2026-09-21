@@ -18,7 +18,11 @@ import GradientButton from '@/components/ui/GradientButton';
 import CardLink from '@/components/ui/CardLink';
 import GradeReport from '@/components/GradeReport';
 import { useAppStore } from '@/store/useAppStore';
+import { analysisTitle } from '@/data/cardDisplay';
+import { summarizeGradeConfidence } from '@/data/gradeConfidence';
+import { lightImpact } from '@/utils/haptics';
 import { getApiBaseUrl } from '@/api/client';
+import type { InventoryCard } from '@/data/types';
 
 const C = Colors.dark;
 
@@ -30,6 +34,8 @@ export default function AnalyzeScreen() {
     batchError,
     clearBatchAnalysis,
     inventory,
+    setCalculator,
+    setProfile,
   } = useAppStore();
 
   const [previewUris, setPreviewUris] = useState<string[]>([]);
@@ -93,6 +99,24 @@ export default function AnalyzeScreen() {
   const errorText = localError || batchError;
   const hasResults = batchAnalysisResults.length > 0;
   const appendNext = hasResults || previewUris.length > 0;
+
+  const useInDecide = (card: InventoryCard) => {
+    if (!card.gradeProbabilities) return;
+    const psa10 = card.gradeProbabilities.psa10Percent ?? 0;
+    const psa9 = card.gradeProbabilities.psa9Percent ?? 0;
+    const psa8 = card.gradeProbabilities.psa8Percent ?? 0;
+    setProfile('custom');
+    setCalculator({
+      probabilities: { psa10, psa9, psa8, below8: Math.max(0, 100 - psa10 - psa9 - psa8) },
+      rawValue: card.estimatedRawValue ?? 0,
+      cardName: analysisTitle(card),
+      psa10Comp: card.comps?.prices.psa10 ?? 0,
+      psa9Comp: card.comps?.prices.psa9 ?? 0,
+      psa8Comp: card.comps?.prices.psa8 ?? 0,
+      below8Comp: card.comps?.prices.below8 ?? 0,
+    });
+    lightImpact();
+  };
 
   return (
     <ScrollView
@@ -190,6 +214,7 @@ export default function AnalyzeScreen() {
               <CardLink href={`/card/${card.id}`} accessibilityLabel={`Open grade report for ${card.name}`} style={styles.resultLink}>
                 <GradeReport card={card} compact />
               </CardLink>
+              <ConfidencePanel card={card} onUse={() => useInDecide(card)} />
             </EnterView>
           ))}
         </>
@@ -206,6 +231,7 @@ export default function AnalyzeScreen() {
             <Text style={styles.demoEyebrow}>EXAMPLE OUTPUT (no upload needed)</Text>
             <Text style={styles.demoTitle}>2018 Luka Doncic Prizm #280</Text>
             <Text style={styles.demoLine}>Likely grade range: PSA 8–10</Text>
+            <Text style={styles.demoConfidence}>Confidence 58/100 · Medium confidence · Uncertainty band PSA 8-10</Text>
             <RNView style={styles.demoProbRow}>
               <Text style={[styles.demoProb, { color: C.grade10 }]}>PSA 10 35%</Text>
               <Text style={[styles.demoProb, { color: C.grade9 }]}>PSA 9 40%</Text>
@@ -221,6 +247,33 @@ export default function AnalyzeScreen() {
 
       <RNView style={{ height: 80 }} />
     </ScrollView>
+  );
+}
+
+function ConfidencePanel({ card, onUse }: { card: InventoryCard; onUse: () => void }) {
+  const confidence = summarizeGradeConfidence(card.gradeProbabilities);
+  if (!card.ok || !confidence || !card.gradeProbabilities) return null;
+
+  return (
+    <RNView style={styles.confidencePanel}>
+      <RNView style={{ flex: 1 }}>
+        <Text style={styles.confidenceKicker}>CONFIDENCE / UNCERTAINTY</Text>
+        <Text style={styles.confidenceTitle}>
+          {confidence.confidenceScore}/100 · {confidence.label}
+        </Text>
+        <Text style={styles.confidenceSub}>
+          Modeled range {confidence.band}. Use these weights when Decide should price uncertainty, not a single grade.
+        </Text>
+      </RNView>
+      <GradientButton
+        href="/"
+        title="Use in Decide"
+        size="small"
+        outline
+        outlineColor={C.accent}
+        onPress={onUse}
+      />
+    </RNView>
   );
 }
 
@@ -260,6 +313,18 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 22, fontWeight: '800', color: C.text },
   summaryHint: { fontSize: 13, color: C.textSecondary, marginTop: 8, lineHeight: 18 },
   resultLink: { marginTop: 10 },
+  confidencePanel: {
+    marginTop: 8,
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 0.5,
+    borderColor: C.accent + '35',
+    gap: 10,
+  },
+  confidenceKicker: { fontSize: 10, color: C.textMuted, letterSpacing: 0.8, marginBottom: 4 },
+  confidenceTitle: { fontSize: 15, color: C.text, fontWeight: '800' },
+  confidenceSub: { fontSize: 12, color: C.textSecondary, lineHeight: 18, marginTop: 4 },
   empty: { alignItems: 'center', paddingVertical: 32, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: C.text },
   emptySub: { fontSize: 13, color: C.textSecondary, textAlign: 'center', lineHeight: 19, maxWidth: 360 },
@@ -276,6 +341,7 @@ const styles = StyleSheet.create({
   demoEyebrow: { fontSize: 10, color: C.textMuted, letterSpacing: 0.6, fontWeight: '700' },
   demoTitle: { fontSize: 16, fontWeight: '800', color: C.text },
   demoLine: { fontSize: 13, color: C.textSecondary },
+  demoConfidence: { fontSize: 12, color: C.accent, fontWeight: '800' },
   demoProbRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   demoProb: { fontSize: 12, fontWeight: '700' },
   demoHint: { fontSize: 12, color: C.textMuted, lineHeight: 17, marginTop: 6 },
