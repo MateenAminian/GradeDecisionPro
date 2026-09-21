@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "NODE_OPTIONS='--require ./scripts/ignore-metro-hmr-crash.cjs' expo start --web",
-    "export:web": "expo export -p web",
+    "export:web": "expo export -p web && node scripts/patch-web-export.cjs",
     "test:ev": "cd backend && PYTHONPATH=. .venv/bin/python tests/test_ev_calculator.py && PYTHONPATH=. .venv/bin/python tests/test_openrouter_parse.py && PYTHONPATH=. .venv/bin/python tests/test_ebay_comps.py"
   },
   "dependencies": {
