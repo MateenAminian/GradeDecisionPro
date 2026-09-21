@@ -1,10 +1,52 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/Colors';
 
+/**
+ * iOS Safari's bottom search/tool bar overlays the layout viewport.
+ * visualViewport gap tracks that chrome; cap so the software keyboard
+ * does not inflate tab-bar padding.
+ */
+function useWebBottomChromeInset() {
+  const [inset, setInset] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const sync = () => {
+      const vv = window.visualViewport;
+      if (!vv) {
+        setInset(0);
+        return;
+      }
+      const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      setInset(Math.min(gap, 120));
+    };
+
+    sync();
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', sync);
+    vv?.addEventListener('scroll', sync);
+    window.addEventListener('resize', sync);
+    return () => {
+      vv?.removeEventListener('resize', sync);
+      vv?.removeEventListener('scroll', sync);
+      window.removeEventListener('resize', sync);
+    };
+  }, []);
+
+  return Platform.OS === 'web' ? inset : 0;
+}
+
 export default function TabLayout() {
+  const safe = useSafeAreaInsets();
+  const chromeInset = useWebBottomChromeInset();
+  const isWeb = Platform.OS === 'web';
+  const webBottomPad = isWeb ? Math.max(8, safe.bottom, chromeInset) : 0;
+
   return (
     <View style={styles.tabsRoot}>
       <Tabs
@@ -24,8 +66,16 @@ export default function TabLayout() {
             backgroundColor: Colors.dark.surface,
             borderTopWidth: 1,
             borderTopColor: Colors.dark.border,
-            height: Platform.OS === 'ios' ? 84 : 64,
             paddingTop: 6,
+            ...(isWeb
+              ? {
+                  // Let padding clear Safari chrome / home indicator instead of a fixed height.
+                  height: undefined,
+                  paddingBottom: webBottomPad,
+                }
+              : {
+                  height: Platform.OS === 'ios' ? 84 : 64,
+                }),
           },
           tabBarLabelStyle: {
             fontSize: 11,
@@ -82,6 +132,5 @@ const styles = StyleSheet.create({
   tabsRoot: {
     flex: 1,
     backgroundColor: Colors.dark.background,
-    ...(Platform.OS === 'web' ? { minHeight: '100vh' as unknown as number } : null),
   },
 });
