@@ -17,6 +17,7 @@ interface Props {
   outlineColor?: string;
   textColor?: string;
   size?: 'default' | 'small';
+  disabled?: boolean;
 }
 
 const handlers = new Map<string, () => void>();
@@ -54,11 +55,13 @@ export default function GradientButton({
   outlineColor,
   textColor = '#FFFFFF',
   size = 'default',
+  disabled = false,
 }: Props) {
   const id = useId();
   const last = useRef(0);
 
   const fire = () => {
+    if (disabled) return;
     const now = Date.now();
     if (now - last.current < 250) return;
     last.current = now;
@@ -73,7 +76,7 @@ export default function GradientButton({
     return () => {
       handlers.delete(id);
     };
-  }, [id, onPress, href]);
+  }, [id, onPress, href, disabled]);
 
   const onClick = (event: MouseEvent) => {
     event.preventDefault();
@@ -89,6 +92,9 @@ export default function GradientButton({
     boxSizing: 'border-box',
     width: style?.flex == null ? '100%' : undefined,
     flex: style?.flex != null ? Number(style.flex) : undefined,
+    marginTop: typeof style?.marginTop === 'number' ? style.marginTop : undefined,
+    marginBottom: typeof style?.marginBottom === 'number' ? style.marginBottom : undefined,
+    alignSelf: typeof style?.alignSelf === 'string' ? style.alignSelf as CSSProperties['alignSelf'] : undefined,
     padding: size === 'small' ? '12px 18px' : '16px 24px',
     borderRadius: 14,
     border: outline ? `1.5px solid ${outlineColor || colors[0]}` : 'none',
@@ -96,13 +102,15 @@ export default function GradientButton({
     color: outline ? outlineColor || colors[0] : textColor,
     fontWeight: 700,
     fontSize: size === 'small' ? 14 : 16,
-    cursor: 'pointer',
+    cursor: disabled ? 'not-allowed' : 'pointer',
     fontFamily: 'inherit',
     textDecoration: 'none',
     appearance: 'none',
+    opacity: disabled ? 0.6 : 1,
+    pointerEvents: disabled ? 'none' : undefined,
   };
 
-  if (href) {
+  if (href && !disabled) {
     return (
       <a href={String(href)} aria-label={title} data-gdp-btn={id} style={css} onClick={onClick}>
         {title}
@@ -111,7 +119,7 @@ export default function GradientButton({
   }
 
   return (
-    <button type="button" aria-label={title} data-gdp-btn={id} style={css} onClick={onClick}>
+    <button type="button" aria-label={title} aria-disabled={disabled} disabled={disabled} data-gdp-btn={id} style={css} onClick={onClick}>
       {title}
     </button>
   );

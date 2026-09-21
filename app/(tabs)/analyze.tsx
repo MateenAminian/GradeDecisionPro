@@ -251,9 +251,6 @@ export default function AnalyzeScreen() {
               <Text style={[styles.demoProb, { color: C.grade9 }]}>PSA 9 40%</Text>
               <Text style={[styles.demoProb, { color: C.grade8 }]}>PSA 8 20%</Text>
             </RNView>
-            <Text style={styles.demoHint}>
-              Confidence is a distribution, not a single grade. Apply this demo distribution to verify the Decide handoff.
-            </Text>
             <GradientButton
               href="/"
               title="Use demo probabilities in Decide"
@@ -261,8 +258,11 @@ export default function AnalyzeScreen() {
               outline
               outlineColor={C.accent}
               onPress={useDemoInDecide}
-              style={{ marginTop: 6 }}
+              style={{ marginTop: 8 }}
             />
+            <Text style={styles.demoHint}>
+              Confidence is a distribution, not a single grade. Apply this demo distribution to verify the Decide handoff.
+            </Text>
           </RNView>
         </RNView>
       ) : null}
@@ -289,7 +289,7 @@ function ConfidencePanel({ card, onUse }: { card: InventoryCard; onUse: () => vo
       </RNView>
       <GradientButton
         href="/"
-        title="Use in Decide"
+        title="Use probabilities in Decide"
         size="small"
         outline
         outlineColor={C.accent}
