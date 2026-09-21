@@ -33,13 +33,16 @@ function openListing(url: string) {
 
 function sourceLabel(card: InventoryCard): string {
   const comps = card.comps;
-  if (!comps) return 'No comps yet — scan eBay or enter asking prices.';
+  if (!comps) return 'No comps yet — scan eBay or enter asking/sold prices.';
+  if (comps.basis === 'sold' || comps.source === 'sold') {
+    return `SOLD COMPS · ${comps.listingCount || 0} sales — preferred for Decide EV`;
+  }
   if (comps.source === 'manual') return 'MANUAL COMPS · edit any value to remodel';
   if (comps.source.endsWith('-edited')) {
-    return `EBAY ASKING (EDITED) · ${comps.listingCount} listings`;
+    return `EBAY ASKING (EDITED) · ${comps.listingCount} listings — not sold prices`;
   }
-  if (comps.source.startsWith('ebay')) {
-    return `LIVE EBAY ASKING · ${comps.listingCount} listings`;
+  if (comps.source.startsWith('ebay') || comps.basis === 'asking') {
+    return `LIVE EBAY ASKING · ${comps.listingCount} listings — not sold comps`;
   }
   return 'No comps yet — scan eBay or type your own';
 }

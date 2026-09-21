@@ -202,6 +202,20 @@ export default function AnalyzeScreen() {
           <Text style={styles.emptySub}>
             Front of the card, filling the frame. You can add more photos after the first scan without starting over.
           </Text>
+          <RNView style={styles.demoCard}>
+            <Text style={styles.demoEyebrow}>EXAMPLE OUTPUT (no upload needed)</Text>
+            <Text style={styles.demoTitle}>2018 Luka Doncic Prizm #280</Text>
+            <Text style={styles.demoLine}>Likely grade range: PSA 8–10</Text>
+            <RNView style={styles.demoProbRow}>
+              <Text style={[styles.demoProb, { color: C.grade10 }]}>PSA 10 35%</Text>
+              <Text style={[styles.demoProb, { color: C.grade9 }]}>PSA 9 40%</Text>
+              <Text style={[styles.demoProb, { color: C.grade8 }]}>PSA 8 20%</Text>
+            </RNView>
+            <Text style={styles.demoHint}>
+              Confidence is a distribution, not a single grade. After a real scan, open Inventory → Decide to apply
+              those weights.
+            </Text>
+          </RNView>
         </RNView>
       ) : null}
 
@@ -212,7 +226,7 @@ export default function AnalyzeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
-  content: { padding: 20, paddingBottom: 40, maxWidth: 560, width: '100%', alignSelf: 'center' },
+  content: { padding: 20, paddingBottom: 40, maxWidth: 720, width: '100%', alignSelf: 'center' },
   title: { fontSize: 24, fontWeight: '800', color: C.text, marginBottom: 6 },
   subtitle: { fontSize: 13, color: C.textSecondary, lineHeight: 19, marginBottom: 16 },
   actions: { gap: 10 },
@@ -246,7 +260,23 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 22, fontWeight: '800', color: C.text },
   summaryHint: { fontSize: 13, color: C.textSecondary, marginTop: 8, lineHeight: 18 },
   resultLink: { marginTop: 10 },
-  empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
+  empty: { alignItems: 'center', paddingVertical: 32, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: C.text },
   emptySub: { fontSize: 13, color: C.textSecondary, textAlign: 'center', lineHeight: 19, maxWidth: 360 },
+  demoCard: {
+    marginTop: 16,
+    alignSelf: 'stretch',
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    gap: 6,
+  },
+  demoEyebrow: { fontSize: 10, color: C.textMuted, letterSpacing: 0.6, fontWeight: '700' },
+  demoTitle: { fontSize: 16, fontWeight: '800', color: C.text },
+  demoLine: { fontSize: 13, color: C.textSecondary },
+  demoProbRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
+  demoProb: { fontSize: 12, fontWeight: '700' },
+  demoHint: { fontSize: 12, color: C.textMuted, lineHeight: 17, marginTop: 6 },
 });

@@ -1,4 +1,4 @@
-import { StyleSheet, View, TextInput } from 'react-native';
+import { StyleSheet, View, TextInput, Platform } from 'react-native';
 import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 
@@ -8,20 +8,27 @@ export default function NumberField({
   label,
   value,
   onChangeText,
+  onBlur,
   prefix,
   suffix,
   accentColor,
   keyboardType = 'numeric',
   fullWidth,
+  fieldKey,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChangeText: (v: string) => void;
+  onBlur?: () => void;
   prefix?: string;
   suffix?: string;
   accentColor?: string;
   keyboardType?: 'numeric' | 'default';
   fullWidth?: boolean;
+  /** Stable identity so rapid re-renders don't remount the wrong input (#4). */
+  fieldKey?: string;
+  placeholder?: string;
 }) {
   return (
     <View style={[styles.field, fullWidth && styles.fullWidth]}>
@@ -30,11 +37,20 @@ export default function NumberField({
       <View style={styles.row}>
         {prefix ? <Text style={styles.affix}>{prefix}</Text> : null}
         <TextInput
+          key={fieldKey ?? label}
+          nativeID={fieldKey ?? label}
+          autoComplete={Platform.OS === 'web' ? 'off' : undefined}
+          autoCorrect={false}
           style={[styles.value, accentColor ? { color: accentColor } : null]}
           value={value}
           onChangeText={onChangeText}
+          onBlur={onBlur}
           keyboardType={keyboardType}
+          placeholder={placeholder}
           placeholderTextColor={C.textMuted}
+          {...(Platform.OS === 'web'
+            ? ({ id: fieldKey ?? label, name: fieldKey ?? label } as object)
+            : null)}
         />
         {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
       </View>

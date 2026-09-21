@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,8 +44,10 @@ function useWebBottomChromeInset() {
 export default function TabLayout() {
   const safe = useSafeAreaInsets();
   const chromeInset = useWebBottomChromeInset();
+  const { width } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
-  const webBottomPad = isWeb ? Math.max(8, safe.bottom, chromeInset) : 0;
+  const desktop = isWeb && width >= 1024;
+  const webBottomPad = isWeb && !desktop ? Math.max(8, safe.bottom, chromeInset) : 0;
 
   return (
     <View style={styles.tabsRoot}>
@@ -62,25 +64,35 @@ export default function TabLayout() {
           sceneStyle: { flex: 1, backgroundColor: Colors.dark.background },
           tabBarActiveTintColor: Colors.dark.accent,
           tabBarInactiveTintColor: Colors.dark.tabIconDefault,
-          tabBarStyle: {
-            backgroundColor: Colors.dark.surface,
-            borderTopWidth: 1,
-            borderTopColor: Colors.dark.border,
-            paddingTop: 6,
-            ...(isWeb
-              ? {
-                  // Let padding clear Safari chrome / home indicator instead of a fixed height.
-                  height: undefined,
-                  paddingBottom: webBottomPad,
-                }
-              : {
-                  height: Platform.OS === 'ios' ? 84 : 64,
-                }),
-          },
+          ...(desktop ? { tabBarPosition: 'top' as const } : null),
+          tabBarStyle: desktop
+            ? {
+                backgroundColor: Colors.dark.surface,
+                borderTopWidth: 0,
+                borderBottomWidth: 1,
+                borderBottomColor: Colors.dark.border,
+                height: 56,
+                paddingTop: 4,
+                paddingBottom: 4,
+              }
+            : {
+                backgroundColor: Colors.dark.surface,
+                borderTopWidth: 1,
+                borderTopColor: Colors.dark.border,
+                paddingTop: 6,
+                ...(isWeb
+                  ? {
+                      height: undefined,
+                      paddingBottom: webBottomPad,
+                    }
+                  : {
+                      height: Platform.OS === 'ios' ? 84 : 64,
+                    }),
+              },
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '600',
-            marginBottom: Platform.OS === 'ios' ? 0 : 8,
+            marginBottom: desktop || Platform.OS === 'ios' ? 0 : 8,
           },
         }}
       >

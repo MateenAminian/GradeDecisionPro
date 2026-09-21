@@ -55,9 +55,26 @@ def test_unprofitable_sell_raw() -> None:
             compPrices=CompPrices(psa10=220, psa9=180, psa8=150, below8=100),
         )
     )
-    assert result.break_even_grade == "None"
+    assert result.break_even_grade == "No grade"
     assert result.recommendation == "SELL_RAW"
     assert result.expected_profit < 0
+
+
+def test_missing_comps_need_comps_state() -> None:
+    result = calculate_ev(
+        _req(
+            rawValue=100,
+            gradingFee=60,
+            shippingCost=15,
+            turnaroundDays=90,
+            probabilities=GradeProbabilities(psa10=65, psa9=25, psa8=8, below8=2),
+            compPrices=CompPrices(psa10=0, psa9=0, psa8=0, below8=0),
+        )
+    )
+    assert result.recommendation == "NEED_COMPS"
+    assert result.break_even_grade == "Need comps"
+    assert result.insufficient_comps is True
+    assert "None" not in " ".join(result.reasoning)
 
 
 def test_marginal_hold_requires_gem() -> None:
@@ -129,6 +146,7 @@ if __name__ == "__main__":
     tests = [
         test_break_even_is_lowest_profitable_grade,
         test_unprofitable_sell_raw,
+        test_missing_comps_need_comps_state,
         test_marginal_hold_requires_gem,
         test_normalizes_probabilities,
         test_roi_is_on_fees_annualized_on_capital,
