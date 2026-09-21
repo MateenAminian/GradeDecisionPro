@@ -85,11 +85,11 @@ export default function SettingsScreen() {
             resetExample();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Reset calculator to the $200 example"
+          accessibilityLabel="Reset calculator inputs"
         >
           <FontAwesome name="undo" size={14} color={C.textSecondary} />
           <Text style={styles.resetText}>
-            Reset calculator to the $200 example ({DEFAULT_SETTINGS.gradingFee} fee / {DEFAULT_SETTINGS.turnaroundDays}d)
+            Reset calculator inputs ({DEFAULT_SETTINGS.gradingFee} fee / {DEFAULT_SETTINGS.turnaroundDays}d turnaround)
           </Text>
         </Pressable>
         <Text style={styles.batchNote}>

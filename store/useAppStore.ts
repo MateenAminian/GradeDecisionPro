@@ -16,8 +16,6 @@ export const DEFAULT_SETTINGS = {
   turnaroundDays: 45,
 };
 
-const EXAMPLE_COMPS: CompPrices = PLACEHOLDER_COMPS;
-
 interface AppState {
   gradingFee: number;
   shippingCost: number;
@@ -82,12 +80,12 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       ...DEFAULT_SETTINGS,
-      rawValue: 200,
+      rawValue: 0,
       cardName: '',
-      psa10Comp: EXAMPLE_COMPS.psa10,
-      psa9Comp: EXAMPLE_COMPS.psa9,
-      psa8Comp: EXAMPLE_COMPS.psa8,
-      below8Comp: EXAMPLE_COMPS.below8,
+      psa10Comp: PLACEHOLDER_COMPS.psa10,
+      psa9Comp: PLACEHOLDER_COMPS.psa9,
+      psa8Comp: PLACEHOLDER_COMPS.psa8,
+      below8Comp: PLACEHOLDER_COMPS.below8,
       selectedProfile: modernMint.id,
       probabilities: { ...modernMint.probabilities },
       priceDropPct: 0,
@@ -398,12 +396,12 @@ export const useAppStore = create<AppState>()(
       resetExample: () =>
         set({
           ...DEFAULT_SETTINGS,
-          rawValue: 200,
+          rawValue: 0,
           cardName: '',
-          psa10Comp: EXAMPLE_COMPS.psa10,
-          psa9Comp: EXAMPLE_COMPS.psa9,
-          psa8Comp: EXAMPLE_COMPS.psa8,
-          below8Comp: EXAMPLE_COMPS.below8,
+          psa10Comp: PLACEHOLDER_COMPS.psa10,
+          psa9Comp: PLACEHOLDER_COMPS.psa9,
+          psa8Comp: PLACEHOLDER_COMPS.psa8,
+          below8Comp: PLACEHOLDER_COMPS.below8,
           selectedProfile: modernMint.id,
           probabilities: { ...modernMint.probabilities },
           priceDropPct: 0,

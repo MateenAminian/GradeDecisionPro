@@ -11,7 +11,6 @@ import CardLink from '@/components/ui/CardLink';
 import GradeReport from '@/components/GradeReport';
 import { useAppStore } from '@/store/useAppStore';
 import { analysisTitle, gradeHeadline } from '@/data/cardDisplay';
-import { PLACEHOLDER_COMPS } from '@/data/inventoryCard';
 import { presetProfiles } from '@/data/presetProfiles';
 import { lightImpact } from '@/utils/haptics';
 
@@ -33,11 +32,11 @@ export default function InventoryScreen() {
   const [setName, setSetName] = useState('');
   const [parallel, setParallel] = useState('');
   const [cardNumber, setCardNumber] = useState('');
-  const [raw, setRaw] = useState('0');
-  const [c10, setC10] = useState(String(PLACEHOLDER_COMPS.psa10));
-  const [c9, setC9] = useState(String(PLACEHOLDER_COMPS.psa9));
-  const [c8, setC8] = useState(String(PLACEHOLDER_COMPS.psa8));
-  const [c7, setC7] = useState(String(PLACEHOLDER_COMPS.below8));
+  const [raw, setRaw] = useState('');
+  const [c10, setC10] = useState('');
+  const [c9, setC9] = useState('');
+  const [c8, setC8] = useState('');
+  const [c7, setC7] = useState('');
   const [profileId, setProfileId] = useState('modern-mint');
 
   useFocusEffect(
@@ -66,10 +65,10 @@ export default function InventoryScreen() {
       rawValue: parseMoney(raw, 0),
       probabilities: { ...profile.probabilities },
       compPrices: {
-        psa10: parseMoney(c10, PLACEHOLDER_COMPS.psa10),
-        psa9: parseMoney(c9, PLACEHOLDER_COMPS.psa9),
-        psa8: parseMoney(c8, PLACEHOLDER_COMPS.psa8),
-        below8: parseMoney(c7, PLACEHOLDER_COMPS.below8),
+        psa10: parseMoney(c10, 0),
+        psa9: parseMoney(c9, 0),
+        psa8: parseMoney(c8, 0),
+        below8: parseMoney(c7, 0),
       },
     });
     setPlayer('');
@@ -77,6 +76,11 @@ export default function InventoryScreen() {
     setSetName('');
     setParallel('');
     setCardNumber('');
+    setRaw('');
+    setC10('');
+    setC9('');
+    setC8('');
+    setC7('');
     setShowAdd(false);
     lightImpact();
     router.push(`/card/${card.id}`);

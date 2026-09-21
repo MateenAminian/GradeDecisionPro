@@ -41,7 +41,7 @@ function sourceLabel(card: InventoryCard): string {
   if (comps.source.startsWith('ebay')) {
     return `LIVE EBAY ASKING · ${comps.listingCount} listings`;
   }
-  return 'PLACEHOLDER COMPS · scan eBay or type your own';
+  return 'No comps yet — scan eBay or type your own';
 }
 
 export default function CompsPanel({ card }: { card: InventoryCard }) {
