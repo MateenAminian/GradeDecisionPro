@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.models import CompPrices
-from app.schemas import CardMetadata
+from app.routers import cardsight as cardsight_router
+from app.schemas import CardMetadata, CompSnapshot
 from app.services.cardsight import aggregate_sold_comps
+from app.services.ebay import LiveComps
 
 
 def row(
@@ -108,8 +111,67 @@ def test_selected_parallel_allows_matching_parallel_rows() -> None:
     assert sold.samples["psa9"] == 3
 
 
+def test_asking_snapshot_sets_fallback_fields_without_alias_setattr() -> None:
+    async def fake_lookup(_meta: CardMetadata, *, refresh: bool = False) -> LiveComps | None:
+        return None
+
+    original_lookup = cardsight_router.lookup_live_comps
+    cardsight_router.lookup_live_comps = fake_lookup
+    try:
+        snapshot = asyncio.run(
+            cardsight_router._asking_snapshot(
+                CardMetadata(year="2018", player="Luka Doncic", set="Prizm", cardNumber="280"),
+                CompPrices(psa10=0, psa9=0, psa8=0, below8=0),
+                refresh=True,
+                reason="CardSight sold comps failed",
+            )
+        )
+    finally:
+        cardsight_router.lookup_live_comps = original_lookup
+
+    assert snapshot.source == "placeholder-fallback"
+    assert snapshot.basis == "manual"
+    assert snapshot.fallback_source == "ebay"
+    assert snapshot.fallback_buckets == ["raw", "psa10", "psa9", "psa8", "below8"]
+    assert "CardSight sold comps failed" in (snapshot.fallback_reason or "")
+
+
+def test_fill_thin_buckets_sets_fallback_fields_without_alias_setattr() -> None:
+    async def fake_lookup(_meta: CardMetadata, *, refresh: bool = False) -> LiveComps | None:
+        return LiveComps(query="asking", raw=10, psa10=100, psa9=50, psa8=25, below8=5)
+
+    original_lookup = cardsight_router.lookup_live_comps
+    cardsight_router.lookup_live_comps = fake_lookup
+    try:
+        snapshot = asyncio.run(
+            cardsight_router._fill_thin_buckets(
+                CompSnapshot(
+                    source="cardsight-sold-partial",
+                    basis="sold",
+                    query="sold",
+                    listingCount=1,
+                    prices=CompPrices(psa10=0, psa9=0, psa8=0, below8=0),
+                    fallbackBuckets=["psa9", "psa8"],
+                ),
+                CardMetadata(year="2018", player="Luka Doncic", set="Prizm", cardNumber="280"),
+                CompPrices(psa10=0, psa9=0, psa8=0, below8=0),
+                refresh=True,
+            )
+        )
+    finally:
+        cardsight_router.lookup_live_comps = original_lookup
+
+    assert snapshot.prices.psa9 == 50
+    assert snapshot.prices.psa8 == 25
+    assert snapshot.fallback_source == "ebay"
+    assert snapshot.fallback_buckets == ["psa9", "psa8"]
+    assert "thin" in (snapshot.fallback_reason or "")
+
+
 if __name__ == "__main__":
     test_aggregate_clean_medians_excludes_autos_and_unselected_parallels()
     test_prefers_matched_card_rows_for_psa_buckets_when_available()
     test_selected_parallel_allows_matching_parallel_rows()
+    test_asking_snapshot_sets_fallback_fields_without_alias_setattr()
+    test_fill_thin_buckets_sets_fallback_fields_without_alias_setattr()
     print("test_cardsight_comps: ok")
