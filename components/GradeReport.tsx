@@ -3,6 +3,7 @@ import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { getRecommendationStyle } from '@/data/recommendation';
 import { analysisTitle, gradeHeadline } from '@/data/cardDisplay';
+import { summarizeGradeConfidence } from '@/data/gradeConfidence';
 import type { InventoryCard, Recommendation } from '@/data/types';
 
 const C = Colors.dark;
@@ -27,6 +28,8 @@ export default function GradeReport({
   hideComps?: boolean;
   hideIdentity?: boolean;
 }) {
+  const confidence = summarizeGradeConfidence(card.gradeProbabilities);
+
   return (
     <RNView style={[styles.card, !card.ok && styles.cardFail]}>
       {card.imageUri && !compact ? (
@@ -87,6 +90,18 @@ export default function GradeReport({
                   <Text style={styles.probLabel}>{p.l}</Text>
                 </RNView>
               ))}
+            </RNView>
+          ) : null}
+
+          {confidence ? (
+            <RNView style={styles.confidenceCard}>
+              <RNView>
+                <Text style={styles.sectionLabel}>CONFIDENCE / UNCERTAINTY</Text>
+                <Text style={styles.confidenceTitle}>
+                  {confidence.confidenceScore}/100 · {confidence.label}
+                </Text>
+              </RNView>
+              <Text style={styles.confidenceBand}>{confidence.band}</Text>
             </RNView>
           ) : null}
 
@@ -206,6 +221,20 @@ const styles = StyleSheet.create({
   probChip: { flex: 1, alignItems: 'center', backgroundColor: C.background, borderRadius: 10, paddingVertical: 8 },
   probValue: { fontSize: 14, fontWeight: '800' },
   probLabel: { fontSize: 10, color: C.textMuted, marginTop: 2 },
+  confidenceCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: C.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 0.5,
+    borderColor: C.accent + '30',
+    gap: 12,
+  },
+  confidenceTitle: { fontSize: 13, color: C.text, fontWeight: '800' },
+  confidenceBand: { fontSize: 14, color: C.accent, fontWeight: '900' },
   section: { marginTop: 6, marginBottom: 8 },
   sectionLabel: { fontSize: 10, color: C.textMuted, letterSpacing: 0.8, marginBottom: 6 },
   condition: { fontSize: 13, color: C.textSecondary, lineHeight: 20 },

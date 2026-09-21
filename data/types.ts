@@ -66,6 +66,8 @@ export interface EVInput {
   declaredValueLimit?: number;
   /** Flat upcharge added to fee when DV exceeds limit. */
   upchargeEstimate?: number;
+  /** Optional Collectors Club / membership cost allocated to this card. */
+  membershipCostPerCard?: number;
   /** Comp basis label for reasoning (asking / sold / haircut). */
   compBasis?: string;
 }
@@ -89,6 +91,7 @@ export interface EVResult {
   probabilitiesNormalized: boolean;
   insufficientComps: boolean;
   upchargeApplied: number;
+  membershipCostPerCard: number;
   marketplaceFeeAmount: number;
   warnings: string[];
 }

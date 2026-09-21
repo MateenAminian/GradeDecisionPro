@@ -137,6 +137,7 @@ function buildReasoning(args: {
   opportunityCost: number;
   marketplaceFeeAmount: number;
   upchargeApplied: number;
+  membershipCostPerCard: number;
   comps: CompPrices;
   compBasis?: string;
   daysToSell: number;
@@ -157,6 +158,7 @@ function buildReasoning(args: {
     opportunityCost,
     marketplaceFeeAmount,
     upchargeApplied,
+    membershipCostPerCard,
     comps,
     compBasis,
     daysToSell,
@@ -185,6 +187,10 @@ function buildReasoning(args: {
     upchargeApplied > 0
       ? `Declared-value upcharge of $${upchargeApplied.toFixed(0)} was added to submission cost.`
       : null;
+  const membershipNote =
+    membershipCostPerCard > 0
+      ? `Collectors Club / membership amortization adds $${membershipCostPerCard.toFixed(0)} per modeled card.`
+      : null;
   const liquidityNote =
     daysToSell >= 45 && comps.psa10 > 0
       ? `Modeled ${daysToSell} days to sell after return — thin liquidity can erase paper EV.`
@@ -199,6 +205,7 @@ function buildReasoning(args: {
       basisNote,
       feeNote,
       upchargeNote,
+      membershipNote,
       liquidityNote,
     ].filter(Boolean) as string[];
   }
@@ -217,6 +224,7 @@ function buildReasoning(args: {
       basisNote,
       feeNote,
       upchargeNote,
+      membershipNote,
       liquidityNote,
     ].filter(Boolean) as string[];
   }
@@ -236,6 +244,7 @@ function buildReasoning(args: {
     basisNote,
     feeNote,
     upchargeNote,
+    membershipNote,
     liquidityNote,
   ].filter(Boolean) as string[];
 }
@@ -256,8 +265,9 @@ export function calculateEV(input: EVInput): EVResult {
   const dvLimit = input.declaredValueLimit ?? Infinity;
   const upchargeEstimate = input.upchargeEstimate ?? 0;
   const upchargeApplied = declaredValue > dvLimit && upchargeEstimate > 0 ? upchargeEstimate : 0;
+  const membershipCostPerCard = Math.max(0, input.membershipCostPerCard ?? 0);
 
-  const gradingFee = Math.max(0, input.gradingFee) + upchargeApplied;
+  const gradingFee = Math.max(0, input.gradingFee) + upchargeApplied + membershipCostPerCard;
 
   const { weights, didNormalize } = normalizeProbabilities(input.probabilities);
 
@@ -305,6 +315,11 @@ export function calculateEV(input: EVInput): EVResult {
       `Modeled declared value $${declaredValue.toFixed(0)} exceeds the tier limit ($${dvLimit}) — added $${upchargeApplied} upcharge.`,
     );
   }
+  if (membershipCostPerCard > 0) {
+    warnings.push(
+      `Collectors Club / membership amortization adds $${membershipCostPerCard.toFixed(0)} to this card's submission cost.`,
+    );
+  }
   if ((input.marketplaceFeePct ?? 0) <= 0 && usable) {
     warnings.push('Marketplace fees are off — EV uses gross comps.');
   }
@@ -342,6 +357,7 @@ export function calculateEV(input: EVInput): EVResult {
       opportunityCost: round2(opportunityCost),
       marketplaceFeeAmount: round2(marketplaceFeeAmount),
       upchargeApplied,
+      membershipCostPerCard,
       comps,
       compBasis: input.compBasis,
       daysToSell,
@@ -349,6 +365,7 @@ export function calculateEV(input: EVInput): EVResult {
     probabilitiesNormalized: didNormalize,
     insufficientComps: !usable,
     upchargeApplied,
+    membershipCostPerCard: round2(membershipCostPerCard),
     marketplaceFeeAmount: round2(marketplaceFeeAmount),
     warnings,
   };

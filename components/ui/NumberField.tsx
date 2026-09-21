@@ -1,4 +1,4 @@
-import { StyleSheet, View, TextInput, Platform } from 'react-native';
+import { StyleSheet, View, TextInput, Platform, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 
@@ -16,6 +16,8 @@ export default function NumberField({
   fullWidth,
   fieldKey,
   placeholder,
+  error,
+  style,
 }: {
   label: string;
   value: string;
@@ -29,9 +31,11 @@ export default function NumberField({
   /** Stable identity so rapid re-renders don't remount the wrong input (#4). */
   fieldKey?: string;
   placeholder?: string;
+  error?: string;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.field, fullWidth && styles.fullWidth]}>
+    <View style={[styles.field, fullWidth && styles.fullWidth, error && styles.fieldError, style]}>
       {accentColor ? <View style={[styles.accent, { backgroundColor: accentColor }]} /> : null}
       <Text style={styles.label}>{label}</Text>
       <View style={styles.row}>
@@ -54,6 +58,7 @@ export default function NumberField({
         />
         {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
       </View>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
 }
@@ -70,6 +75,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fullWidth: { flexBasis: '100%' },
+  fieldError: { borderColor: C.accentRed + '90' },
   accent: {
     position: 'absolute',
     left: 0,
@@ -90,4 +96,5 @@ const styles = StyleSheet.create({
   affix: { fontSize: 16, color: C.textMuted, fontWeight: '600', marginRight: 2 },
   suffix: { fontSize: 13, color: C.textMuted },
   value: { fontSize: 20, fontWeight: '700', color: C.text, padding: 0, flex: 1 },
+  error: { marginTop: 8, fontSize: 11, color: C.accentRed, lineHeight: 15, fontWeight: '600' },
 });
