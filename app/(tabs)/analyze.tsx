@@ -118,6 +118,20 @@ export default function AnalyzeScreen() {
     lightImpact();
   };
 
+  const useDemoInDecide = () => {
+    setProfile('custom');
+    setCalculator({
+      probabilities: { psa10: 35, psa9: 40, psa8: 20, below8: 5 },
+      rawValue: 250,
+      cardName: '2018 Luka Doncic Prizm #280',
+      psa10Comp: 900,
+      psa9Comp: 350,
+      psa8Comp: 220,
+      below8Comp: 150,
+    });
+    lightImpact();
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -238,9 +252,17 @@ export default function AnalyzeScreen() {
               <Text style={[styles.demoProb, { color: C.grade8 }]}>PSA 8 20%</Text>
             </RNView>
             <Text style={styles.demoHint}>
-              Confidence is a distribution, not a single grade. After a real scan, open Inventory → Decide to apply
-              those weights.
+              Confidence is a distribution, not a single grade. Apply this demo distribution to verify the Decide handoff.
             </Text>
+            <GradientButton
+              href="/"
+              title="Use demo probabilities in Decide"
+              size="small"
+              outline
+              outlineColor={C.accent}
+              onPress={useDemoInDecide}
+              style={{ marginTop: 6 }}
+            />
           </RNView>
         </RNView>
       ) : null}

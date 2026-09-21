@@ -201,6 +201,7 @@ export default function CalculatorScreen() {
     comps: enteredComps,
   });
   const fieldError = (field: string) => warnings.find((w) => w.field === field)?.message;
+  const hasInputErrors = warnings.length > 0;
 
   const persistAll = () => {
     store.setCalculator({
@@ -494,11 +495,22 @@ export default function CalculatorScreen() {
             placeholder="Auto from PSA 10"
           />
         </RNView>
+        {hasInputErrors ? (
+          <RNView style={styles.inlineValidationPanel}>
+            <Text style={styles.inlineValidationTitle}>Fix these inputs before trusting EV</Text>
+            {warnings.map((w) => (
+              <Text key={`inline-${w.field}-${w.message}`} style={styles.inlineValidationText}>
+                • {w.message}
+              </Text>
+            ))}
+          </RNView>
+        ) : null}
       </EnterView>
 
       <EnterView entering={FadeInDown.delay(140).duration(400)}>
-        <Text style={styles.sectionTitle}>Membership & upcharge modeling</Text>
+        <Text style={styles.sectionTitle}>Required risk controls</Text>
         <RNView style={styles.infoPanel}>
+          <Text style={styles.panelEyebrow}>#12 MEMBERSHIP / UPCHARGE</Text>
           <RNView style={styles.panelGrid}>
             <NumberField
               fieldKey="decide-membership-fee"
@@ -517,6 +529,30 @@ export default function CalculatorScreen() {
               style={wideFieldStyle}
               onChangeText={(v) => store.setCosts({ membershipCards: Math.max(1, num(v) || 1) })}
             />
+            <NumberField
+              fieldKey="decide-days-to-sell"
+              label="Days to sell"
+              suffix=" days"
+              value={String(store.daysToSell)}
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCosts({ daysToSell: Math.max(0, num(v)) })}
+            />
+            <NumberField
+              fieldKey="decide-recent-sold"
+              label="Recent sold comps"
+              value={store.recentSoldCount > 0 ? String(store.recentSoldCount) : ''}
+              placeholder="Manual count"
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCalculator({ recentSoldCount: Math.max(0, num(v)) })}
+            />
+            <NumberField
+              fieldKey="decide-psa10-pop"
+              label="PSA 10 pop count"
+              value={store.psa10PopCount > 0 ? String(store.psa10PopCount) : ''}
+              placeholder="Manual pop"
+              style={wideFieldStyle}
+              onChangeText={(v) => store.setCalculator({ psa10PopCount: Math.max(0, num(v)) })}
+            />
           </RNView>
           <RNView style={[styles.insightRow, upchargeTriggered ? styles.insightWarn : styles.insightOk]}>
             <FontAwesome
@@ -531,8 +567,28 @@ export default function CalculatorScreen() {
             </Text>
           </RNView>
           <Text style={styles.panelHint}>
-            Membership adds ${membershipCostPerCard.toFixed(2)} per card to totals when a fee is entered.
+            Membership adds ${membershipCostPerCard.toFixed(2)} per card to submission cost and EV totals when a fee is entered.
           </Text>
+          <Text style={styles.panelEyebrow}>#14 SOLD COMPS / SALES VELOCITY</Text>
+          <RNView style={[styles.insightRow, thinLiquidity ? styles.insightWarn : styles.insightOk]}>
+            <FontAwesome name={thinLiquidity ? 'hourglass-half' : 'line-chart'} size={13} color={thinLiquidity ? C.accentYellow : C.accentGreen} />
+            <Text style={styles.insightText}>
+              {thinLiquidity
+                ? `Thin liquidity overlay: modeled ${store.daysToSell} days to sell${store.recentSoldCount > 0 ? ` with only ${store.recentSoldCount} recent sold comp${store.recentSoldCount === 1 ? '' : 's'}` : ''}. EV may be slower than the headline.`
+                : `Velocity looks usable at ${store.daysToSell} days to sell. Sold comps remain safer than asking prices for go/no-go.`}
+            </Text>
+          </RNView>
+          <Text style={styles.panelEyebrow}>#18 POP REPORT / FLOODED TIER</Text>
+          <RNView style={[styles.insightRow, highPopLowLiquidity ? styles.insightWarn : styles.insightNeutral]}>
+            <FontAwesome name="users" size={13} color={highPopLowLiquidity ? C.accentYellow : C.accent} />
+            <Text style={styles.insightText}>
+              {highPopLowLiquidity
+                ? `Flooded PSA 10 warning: pop ${store.psa10PopCount.toFixed(0)} with ${store.recentSoldCount || 0} recent sales can trap capital even when EV looks green.`
+                : store.psa10PopCount > 0
+                  ? `Pop overlay: PSA 10 population ${store.psa10PopCount.toFixed(0)}. Watch velocity before grading into crowded tiers.`
+                  : 'Manual MVP placeholder: enter PSA Pop Report count to surface crowded-tier warnings while a live Pop API is unavailable.'}
+            </Text>
+          </RNView>
         </RNView>
       </EnterView>
 
@@ -611,72 +667,6 @@ export default function CalculatorScreen() {
             }}
             accentColor={C.gradeBelow}
           />
-        </RNView>
-      </EnterView>
-
-      <EnterView entering={FadeInDown.delay(190).duration(400)}>
-        <Text style={styles.sectionTitle}>Sold comps & sales velocity</Text>
-        <RNView style={styles.infoPanel}>
-          <RNView style={styles.panelGrid}>
-            <NumberField
-              fieldKey="decide-days-to-sell"
-              label="Days to sell"
-              suffix=" days"
-              value={String(store.daysToSell)}
-              style={wideFieldStyle}
-              onChangeText={(v) => store.setCosts({ daysToSell: num(v) })}
-            />
-            <NumberField
-              fieldKey="decide-recent-sold"
-              label="Recent sold comps"
-              value={store.recentSoldCount > 0 ? String(store.recentSoldCount) : ''}
-              placeholder="Manual count"
-              style={wideFieldStyle}
-              onChangeText={(v) => store.setCalculator({ recentSoldCount: Math.max(0, num(v)) })}
-            />
-          </RNView>
-          <RNView style={[styles.insightRow, thinLiquidity ? styles.insightWarn : styles.insightOk]}>
-            <FontAwesome name={thinLiquidity ? 'hourglass-half' : 'line-chart'} size={13} color={thinLiquidity ? C.accentYellow : C.accentGreen} />
-            <Text style={styles.insightText}>
-              {thinLiquidity
-                ? `Thin liquidity overlay: modeled ${store.daysToSell} days to sell${store.recentSoldCount > 0 ? ` with only ${store.recentSoldCount} recent sold comp${store.recentSoldCount === 1 ? '' : 's'}` : ''}. EV may be slower than the headline.`
-                : `Velocity looks usable at ${store.daysToSell} days to sell. Sold comps remain safer than asking prices for go/no-go.`}
-            </Text>
-          </RNView>
-        </RNView>
-      </EnterView>
-
-      <EnterView entering={FadeInDown.delay(205).duration(400)}>
-        <Text style={styles.sectionTitle}>Pop report & liquidity overlay</Text>
-        <RNView style={styles.infoPanel}>
-          <RNView style={styles.panelGrid}>
-            <NumberField
-              fieldKey="decide-psa10-pop"
-              label="PSA 10 pop count"
-              value={store.psa10PopCount > 0 ? String(store.psa10PopCount) : ''}
-              placeholder="Manual pop"
-              style={wideFieldStyle}
-              onChangeText={(v) => store.setCalculator({ psa10PopCount: Math.max(0, num(v)) })}
-            />
-            <NumberField
-              fieldKey="decide-pop-sales"
-              label="Recent sales vs pop"
-              value={store.recentSoldCount > 0 ? String(store.recentSoldCount) : ''}
-              placeholder="Same sold count"
-              style={wideFieldStyle}
-              onChangeText={(v) => store.setCalculator({ recentSoldCount: Math.max(0, num(v)) })}
-            />
-          </RNView>
-          <RNView style={[styles.insightRow, highPopLowLiquidity ? styles.insightWarn : styles.insightNeutral]}>
-            <FontAwesome name="users" size={13} color={highPopLowLiquidity ? C.accentYellow : C.accent} />
-            <Text style={styles.insightText}>
-              {highPopLowLiquidity
-                ? `Flooded PSA 10 warning: pop ${store.psa10PopCount.toFixed(0)} with ${store.recentSoldCount || 0} recent sales can trap capital even when EV looks green.`
-                : store.psa10PopCount > 0
-                  ? `Pop overlay: PSA 10 population ${store.psa10PopCount.toFixed(0)}. Watch velocity before grading into crowded tiers.`
-                  : 'Manual MVP placeholder: enter PSA Pop Report count to surface crowded-tier warnings while a live Pop API is unavailable.'}
-            </Text>
-          </RNView>
         </RNView>
       </EnterView>
 
@@ -807,11 +797,13 @@ export default function CalculatorScreen() {
 
       <EnterView entering={FadeInDown.delay(340).duration(400)} style={{ marginTop: 12, gap: 10 }}>
         <GradientButton
-          href="/batch"
-          onPress={handleAddToBatch}
-          title={addedFlash ? 'Added to batch' : 'Add this card to batch'}
-          icon={<FontAwesome name={addedFlash ? 'check' : 'plus'} size={16} color="#FFF" />}
-          colors={[C.accentGreen, '#16A34A']}
+          href={hasInputErrors ? undefined : '/batch'}
+          onPress={() => {
+            if (!hasInputErrors) handleAddToBatch();
+          }}
+          title={hasInputErrors ? 'Fix input errors before batch' : addedFlash ? 'Added to batch' : 'Add this card to batch'}
+          icon={<FontAwesome name={hasInputErrors ? 'exclamation-circle' : addedFlash ? 'check' : 'plus'} size={16} color="#FFF" />}
+          colors={hasInputErrors ? [C.accentRed, '#991B1B'] : [C.accentGreen, '#16A34A']}
         />
         <GradientButton
           href="/batch"
@@ -866,6 +858,17 @@ const styles = StyleSheet.create({
   inputGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   inputGridWide: { gap: 12 },
   gridFieldWide: { flexBasis: '30%', minWidth: 220 },
+  inlineValidationPanel: {
+    backgroundColor: C.accentRed + '12',
+    borderColor: C.accentRed + '50',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    gap: 5,
+  },
+  inlineValidationTitle: { fontSize: 13, color: C.accentRed, fontWeight: '800' },
+  inlineValidationText: { fontSize: 12, color: C.accentRed, lineHeight: 18 },
   infoPanel: {
     backgroundColor: C.surface,
     borderRadius: 16,
@@ -876,6 +879,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   panelGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  panelEyebrow: { fontSize: 10, color: C.textMuted, letterSpacing: 0.8, fontWeight: '800' },
   panelHint: { fontSize: 12, color: C.textMuted, lineHeight: 18 },
   insightRow: {
     flexDirection: 'row',
