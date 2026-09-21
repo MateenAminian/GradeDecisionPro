@@ -30,6 +30,10 @@ export interface CompListing {
   bucket: string;
   url?: string;
   itemId?: string;
+  source?: string;
+  listingType?: string;
+  soldAt?: string | null;
+  grade?: string;
 }
 
 export interface CompSnapshot {
@@ -43,6 +47,11 @@ export interface CompSnapshot {
   listings?: CompListing[];
   /** asking | sold | manual | asking-haircut */
   basis?: string;
+  period?: string | null;
+  minSamples?: number | null;
+  fallbackSource?: string | null;
+  fallbackReason?: string | null;
+  fallbackBuckets?: string[];
 }
 
 export interface EVInput {

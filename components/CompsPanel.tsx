@@ -33,18 +33,18 @@ function openListing(url: string) {
 
 function sourceLabel(card: InventoryCard): string {
   const comps = card.comps;
-  if (!comps) return 'No comps yet — scan eBay or enter asking/sold prices.';
-  if (comps.basis === 'sold' || comps.source === 'sold') {
-    return `SOLD COMPS · ${comps.listingCount || 0} sales — preferred for Decide EV`;
+  if (!comps) return 'No comps yet — scan sold auctions or enter prices.';
+  if (comps.basis === 'sold' || comps.source?.startsWith('cardsight')) {
+    return `SOLD AUCTION COMPS · ${comps.listingCount || 0} sales${comps.period ? ` · ${comps.period}` : ''} — preferred for Decide EV`;
   }
   if (comps.source === 'manual') return 'MANUAL COMPS · edit any value to remodel';
-  if (comps.source.endsWith('-edited')) {
-    return `EBAY ASKING (EDITED) · ${comps.listingCount} listings — not sold prices`;
+  if (comps.source?.endsWith('-edited')) {
+    return `${comps.source.startsWith('cardsight') ? 'SOLD AUCTION' : 'EBAY ASKING'} (EDITED) · ${comps.listingCount} listings`;
   }
-  if (comps.source.startsWith('ebay') || comps.basis === 'asking') {
+  if (comps.source?.startsWith('ebay') || comps.basis === 'asking') {
     return `LIVE EBAY ASKING · ${comps.listingCount} listings — not sold comps`;
   }
-  return 'No comps yet — scan eBay or type your own';
+  return 'No comps yet — scan sold auctions or type your own';
 }
 
 export default function CompsPanel({ card }: { card: InventoryCard }) {
@@ -111,7 +111,7 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
     try {
       await refreshInventoryComps(card.id, meta);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'eBay comps lookup failed');
+      setError(err instanceof Error ? err.message : 'Sold comps lookup failed');
     } finally {
       setScanning(false);
     }
@@ -130,7 +130,7 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
   return (
     <RNView style={styles.wrap}>
       <Text style={styles.sectionLabel}>SEARCH IDENTITY</Text>
-      <Text style={styles.hint}>Fix the player, set, number, or parallel, then scan. eBay matches this text, not the photo.</Text>
+      <Text style={styles.hint}>Fix the player, set, number, or parallel, then scan. Sold comps match this text, not the photo.</Text>
       <RNView style={styles.identityGrid}>
         <IdentityField label="Year" value={year} onChange={setYear} onBlur={() => persistIdentity(metadataFromFields())} />
         <IdentityField label="Player" value={player} onChange={setPlayer} onBlur={() => persistIdentity(metadataFromFields())} />
@@ -140,7 +140,7 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
       </RNView>
 
       <GradientButton
-        title={scanning ? 'Scanning eBay…' : 'Scan eBay comps'}
+        title={scanning ? 'Scanning sold comps…' : 'Scan sold comps'}
         onPress={scan}
         style={{ marginTop: 4 }}
       />
@@ -148,6 +148,7 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
 
       <Text style={[styles.sectionLabel, { marginTop: 16 }]}>{sourceLabel(card)}</Text>
       {card.comps?.query ? <Text style={styles.query}>Query: {card.comps.query}</Text> : null}
+      {card.comps?.fallbackReason ? <Text style={styles.fallback}>{card.comps.fallbackReason}</Text> : null}
 
       <RNView style={styles.priceGrid}>
         <NumberField
@@ -203,7 +204,7 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
       <Text style={styles.hint}>Edit any dollar amount to remodel EV with your own comps. Sample counts are next to each listing group.</Text>
 
       {listings.length === 0 ? (
-        <Text style={styles.empty}>No retrieved listings yet. Scan eBay to inspect asking prices, or type comps above.</Text>
+        <Text style={styles.empty}>No retrieved listings yet. Scan sold comps to inspect auction sales, or type comps above.</Text>
       ) : (
         BUCKETS.map((bucket) => {
           const rows = grouped[bucket.id];
@@ -237,7 +238,7 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
                   <Text style={styles.listingTitle} numberOfLines={2}>
                     {row.title}
                   </Text>
-                  <Text style={styles.listingOpen}>{row.url ? 'Open' : ''}</Text>
+                  <Text style={styles.listingOpen}>{row.soldAt || row.source || (row.url ? 'Open' : '')}</Text>
                 </Pressable>
               ))}
             </RNView>
@@ -291,6 +292,7 @@ const styles = StyleSheet.create({
   },
   hint: { fontSize: 12, color: C.textMuted, lineHeight: 18, marginBottom: 10 },
   query: { fontSize: 12, color: C.textSecondary, marginBottom: 10 },
+  fallback: { fontSize: 12, color: C.accentYellow, lineHeight: 18, marginBottom: 10 },
   identityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   field: {
     backgroundColor: C.background,

@@ -21,6 +21,10 @@ class CompListing(CamelModel):
     bucket: str = ""
     url: str = ""
     item_id: str = Field("", alias="itemId")
+    source: str = ""
+    listing_type: str = Field("", alias="listingType")
+    sold_at: str | None = Field(None, alias="soldAt")
+    grade: str = ""
 
 
 class CompSnapshot(CamelModel):
@@ -32,6 +36,12 @@ class CompSnapshot(CamelModel):
     fetched_at: str | None = Field(None, alias="fetchedAt")
     raw: float | None = None
     listings: list[CompListing] = Field(default_factory=list)
+    basis: str | None = None
+    period: str | None = None
+    min_samples: int | None = Field(None, alias="minSamples")
+    fallback_source: str | None = Field(None, alias="fallbackSource")
+    fallback_reason: str | None = Field(None, alias="fallbackReason")
+    fallback_buckets: list[str] = Field(default_factory=list, alias="fallbackBuckets")
 
 
 class LookupCompsRequest(CamelModel):

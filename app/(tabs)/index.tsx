@@ -23,6 +23,8 @@ import { lightImpact, successNotification } from '@/utils/haptics';
 import { FEE_ASSUMPTIONS_AS_OF, getTier, GRADER_LABELS, SERVICE_TIERS } from '@/data/graders';
 import { applyAskingHaircut } from '@/data/marketplace';
 import { validateDecideInputs } from '@/data/validation';
+import { lookupSoldComps } from '@/api/client';
+import { metadataFromLabel } from '@/data/inventoryCard';
 import type { CompPrices, GradeProbabilities } from '@/data/types';
 
 const C = Colors.dark;
@@ -54,6 +56,9 @@ export default function CalculatorScreen() {
   const [c8, setC8] = useState(moneyText(store.psa8Comp));
   const [c7, setC7] = useState(moneyText(store.below8Comp));
   const [dvText, setDvText] = useState(moneyText(store.declaredValue));
+  const [compScanMessage, setCompScanMessage] = useState<string | null>(null);
+  const [compScanError, setCompScanError] = useState<string | null>(null);
+  const [scanningComps, setScanningComps] = useState(false);
 
   const hydrateFromStore = useCallback(() => {
     if (editingRef.current) return;
@@ -258,6 +263,50 @@ export default function CalculatorScreen() {
     successNotification();
     setAddedFlash(true);
     setTimeout(() => setAddedFlash(false), 1800);
+  };
+
+  const handleScanComps = async () => {
+    if (scanningComps) return;
+    const meta = metadataFromLabel(cardName);
+    if (!meta.player && !meta.year && !meta.set && !meta.cardNumber) {
+      setCompScanError('Enter a card name like "2018 Luka Doncic Prizm 280" before scanning.');
+      return;
+    }
+    persistAll();
+    setScanningComps(true);
+    setCompScanError(null);
+    setCompScanMessage(null);
+    try {
+      const snapshot = await lookupSoldComps(meta, {
+        fallback: enteredComps,
+        refresh: true,
+      });
+      const nextRaw = snapshot.raw && snapshot.raw > 0 ? snapshot.raw : rawValue;
+      setRawText(moneyText(nextRaw));
+      setC10(moneyText(snapshot.prices.psa10));
+      setC9(moneyText(snapshot.prices.psa9));
+      setC8(moneyText(snapshot.prices.psa8));
+      setC7(moneyText(snapshot.prices.below8));
+      store.setCalculator({
+        cardName: cardName.trim(),
+        rawValue: nextRaw,
+        psa10Comp: snapshot.prices.psa10,
+        psa9Comp: snapshot.prices.psa9,
+        psa8Comp: snapshot.prices.psa8,
+        below8Comp: snapshot.prices.below8,
+        recentSoldCount: snapshot.basis === 'sold' || snapshot.source.startsWith('cardsight') ? snapshot.listingCount : store.recentSoldCount,
+      });
+      setCompScanMessage(
+        snapshot.fallbackReason ||
+          (snapshot.basis === 'sold' || snapshot.source.startsWith('cardsight')
+            ? `Loaded CardSight sold-auction medians (${snapshot.listingCount} sales${snapshot.period ? `, ${snapshot.period}` : ''}).`
+            : `Loaded eBay asking fallback (${snapshot.listingCount} listings).`),
+      );
+    } catch (err) {
+      setCompScanError(err instanceof Error ? err.message : 'Sold comps lookup failed');
+    } finally {
+      setScanningComps(false);
+    }
   };
 
   const contentMax = wide ? 1120 : 560;
@@ -600,9 +649,18 @@ export default function CalculatorScreen() {
       <EnterView entering={FadeInDown.delay(160).duration(400)}>
         <Text style={styles.sectionTitle}>Comp Prices</Text>
         <Text style={styles.sectionHint}>
-          Prefer sold comps for go/no-go. eBay scans in Inventory are asking prices — a {store.askingHaircutPct}%
-          haircut is applied when enabled in Settings.
+          Prefer sold comps for go/no-go. CardSight sold-auction scans run through the backend; eBay asking remains fallback.
         </Text>
+        <RNView style={styles.compScanRow}>
+          <GradientButton
+            title={scanningComps ? 'Scanning sold comps…' : 'Scan sold comps'}
+            onPress={handleScanComps}
+            disabled={scanningComps}
+            style={styles.compScanButton}
+          />
+        </RNView>
+        {compScanError ? <Text style={styles.compScanError}>{compScanError}</Text> : null}
+        {compScanMessage ? <Text style={styles.compScanMessage}>{compScanMessage}</Text> : null}
         <RNView style={[styles.inputGrid, wide && styles.inputGridWide]}>
           <NumberField
             fieldKey="decide-c10"
@@ -870,6 +928,10 @@ const styles = StyleSheet.create({
   warnText: { fontSize: 12, color: C.accentYellow, flex: 1, lineHeight: 18 },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: C.text, marginBottom: 12, marginTop: 4 },
   sectionHint: { fontSize: 12, color: C.textSecondary, marginBottom: 12, lineHeight: 18 },
+  compScanRow: { marginBottom: 10 },
+  compScanButton: { alignSelf: 'flex-start', minWidth: 210 },
+  compScanError: { color: C.accentRed, fontSize: 12, marginTop: -4, marginBottom: 10 },
+  compScanMessage: { color: C.accentYellow, fontSize: 12, lineHeight: 18, marginTop: -4, marginBottom: 10 },
   nameWrap: { marginBottom: 10 },
   inputGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   inputGridWide: { gap: 12 },

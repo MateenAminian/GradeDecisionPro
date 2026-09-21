@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeStorage } from '@/store/safeStorage';
 import { presetProfiles } from '@/data/presetProfiles';
-import { analyzeBatchImages, lookupEbayComps } from '@/api/client';
+import { analyzeBatchImages, lookupSoldComps } from '@/api/client';
 import { persistImageUri } from '@/utils/persistImage';
 import { analysisTitle } from '@/data/cardDisplay';
 import { PLACEHOLDER_COMPS, createManualInventoryCard, metadataFromLabel, rebuildInventoryCard } from '@/data/inventoryCard';
@@ -442,7 +442,9 @@ export const useAppStore = create<AppState>()(
             const prices = patch.prices ?? current;
             const editedSource = card.comps?.source?.startsWith('ebay')
               ? 'ebay-live-edited'
-              : 'manual';
+              : card.comps?.source?.startsWith('cardsight')
+                ? 'cardsight-sold-edited'
+                : 'manual';
             const comps = {
               source: editedSource,
               query: card.comps?.query ?? '',
@@ -475,13 +477,13 @@ export const useAppStore = create<AppState>()(
           cardNumber: '',
           parallel: '',
         };
-        const snapshot = await lookupEbayComps(meta, {
+        const snapshot = await lookupSoldComps(meta, {
           fallback: card.comps?.prices ?? PLACEHOLDER_COMPS,
           refresh: true,
         });
         const withBasis = {
           ...snapshot,
-          basis: snapshot.source?.startsWith('ebay') ? 'asking' : snapshot.source || 'manual',
+          basis: snapshot.basis || (snapshot.source?.startsWith('cardsight') ? 'sold' : snapshot.source?.startsWith('ebay') ? 'asking' : 'manual'),
         };
         const next = rebuildInventoryCard(card, {
           metadata: meta,
