@@ -18,6 +18,7 @@ interface Props {
   outlineColor?: string;
   textColor?: string;
   size?: 'default' | 'small';
+  disabled?: boolean;
 }
 
 export default function GradientButton({
@@ -31,8 +32,10 @@ export default function GradientButton({
   outlineColor,
   textColor = '#FFFFFF',
   size = 'default',
+  disabled = false,
 }: Props) {
   const handlePress = () => {
+    if (disabled) return;
     lightImpact();
     onPress?.();
     if (href) router.push(href);
@@ -60,7 +63,9 @@ export default function GradientButton({
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={title}
-      style={({ pressed }) => [styles.wrap, style, pressed && styles.pressed]}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      style={({ pressed }) => [styles.wrap, style, disabled && styles.disabled, pressed && !disabled && styles.pressed]}
     >
       {visual}
     </Pressable>
@@ -70,6 +75,7 @@ export default function GradientButton({
 const styles = StyleSheet.create({
   wrap: { borderRadius: 14, overflow: 'hidden' },
   pressed: { opacity: 0.85 },
+  disabled: { opacity: 0.65 },
   gradient: {
     flexDirection: 'row',
     alignItems: 'center',

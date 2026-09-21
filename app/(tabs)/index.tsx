@@ -41,6 +41,7 @@ export default function CalculatorScreen() {
   const { width } = useWindowDimensions();
   const wide = width >= 1024;
   const [addedFlash, setAddedFlash] = useState(false);
+  const [attemptedInvalidAdd, setAttemptedInvalidAdd] = useState(false);
   const editingRef = useRef(false);
 
   const [cardName, setCardName] = useState(store.cardName);
@@ -233,6 +234,10 @@ export default function CalculatorScreen() {
   };
 
   const handleAddToBatch = () => {
+    if (hasInputErrors) {
+      setAttemptedInvalidAdd(true);
+      return;
+    }
     persistAll();
     store.addCurrentToBatch({
       name: cardName.trim(),
@@ -796,14 +801,25 @@ export default function CalculatorScreen() {
       </EnterView>
 
       <EnterView entering={FadeInDown.delay(340).duration(400)} style={{ marginTop: 12, gap: 10 }}>
+        {hasInputErrors ? (
+          <RNView style={styles.addBlockerPanel}>
+            <Text style={styles.inlineValidationTitle}>
+              {attemptedInvalidAdd ? 'Add blocked: fix validation errors first' : 'Cannot add invalid card to batch'}
+            </Text>
+            {warnings.map((w) => (
+              <Text key={`add-block-${w.field}-${w.message}`} style={styles.inlineValidationText}>
+                • {w.message}
+              </Text>
+            ))}
+          </RNView>
+        ) : null}
         <GradientButton
           href={hasInputErrors ? undefined : '/batch'}
-          onPress={() => {
-            if (!hasInputErrors) handleAddToBatch();
-          }}
+          onPress={handleAddToBatch}
           title={hasInputErrors ? 'Fix input errors before batch' : addedFlash ? 'Added to batch' : 'Add this card to batch'}
           icon={<FontAwesome name={hasInputErrors ? 'exclamation-circle' : addedFlash ? 'check' : 'plus'} size={16} color="#FFF" />}
           colors={hasInputErrors ? [C.accentRed, '#991B1B'] : [C.accentGreen, '#16A34A']}
+          disabled={hasInputErrors}
         />
         <GradientButton
           href="/batch"
@@ -865,6 +881,14 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     marginBottom: 20,
+    gap: 5,
+  },
+  addBlockerPanel: {
+    backgroundColor: C.accentRed + '12',
+    borderColor: C.accentRed + '60',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
     gap: 5,
   },
   inlineValidationTitle: { fontSize: 13, color: C.accentRed, fontWeight: '800' },
