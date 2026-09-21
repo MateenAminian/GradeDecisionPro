@@ -57,9 +57,9 @@ async def _asking_snapshot(meta: CardMetadata, fallback: CompPrices, *, refresh:
         snapshot = CompSnapshot(source="placeholder", query=search_query(meta), listingCount=0, prices=fallback)
     snapshot.source = f"{snapshot.source}-fallback" if snapshot.source != "placeholder" else "placeholder-fallback"
     snapshot.basis = "asking" if snapshot.source.startswith("ebay") else "manual"
-    snapshot.fallbackSource = "ebay"
-    snapshot.fallbackBuckets = buckets or ["raw", "psa10", "psa9", "psa8", "below8"]
-    snapshot.fallbackReason = _fallback_text(snapshot.fallbackBuckets, reason)
+    snapshot.fallback_source = "ebay"
+    snapshot.fallback_buckets = buckets or ["raw", "psa10", "psa9", "psa8", "below8"]
+    snapshot.fallback_reason = _fallback_text(snapshot.fallback_buckets, reason)
     return snapshot
 
 
@@ -73,15 +73,15 @@ async def _fill_thin_buckets(snapshot: CompSnapshot, meta: CardMetadata, fallbac
         logger.exception("eBay asking fallback failed after thin CardSight comps")
         asking = None
     if not asking:
-        snapshot.fallbackSource = "provided"
+        snapshot.fallback_source = "provided"
         return snapshot
 
     asking_snapshot = asking.to_snapshot(fallback)
     for bucket in thin:
         _set_bucket_price(snapshot, bucket, _bucket_price(asking_snapshot, bucket))
 
-    snapshot.fallbackSource = "ebay"
-    snapshot.fallbackReason = _fallback_text(thin, "CardSight sold-auction sample is thin")
+    snapshot.fallback_source = "ebay"
+    snapshot.fallback_reason = _fallback_text(thin, "CardSight sold-auction sample is thin")
     snapshot.listings = (snapshot.listings + (asking_snapshot.listings or []))[:40]
     return snapshot
 
