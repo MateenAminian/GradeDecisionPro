@@ -37,7 +37,7 @@ export default function NumberField({
   return (
     <View style={[styles.field, fullWidth && styles.fullWidth, error && styles.fieldError, style]}>
       {accentColor ? <View style={[styles.accent, { backgroundColor: accentColor }]} /> : null}
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, error && styles.labelError]}>{label}</Text>
       <View style={styles.row}>
         {prefix ? <Text style={styles.affix}>{prefix}</Text> : null}
         <TextInput
@@ -45,7 +45,7 @@ export default function NumberField({
           nativeID={fieldKey ?? label}
           autoComplete={Platform.OS === 'web' ? 'off' : undefined}
           autoCorrect={false}
-          style={[styles.value, accentColor ? { color: accentColor } : null]}
+          style={[styles.value, accentColor ? { color: accentColor } : null, error && styles.valueError]}
           value={value}
           onChangeText={onChangeText}
           onBlur={onBlur}
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fullWidth: { flexBasis: '100%' },
-  fieldError: { borderColor: C.accentRed + '90' },
+  fieldError: { borderColor: C.accentRed + '90', backgroundColor: C.accentRed + '10' },
   accent: {
     position: 'absolute',
     left: 0,
@@ -85,6 +85,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 14,
     borderBottomLeftRadius: 14,
   },
+  labelError: { color: C.accentRed },
   label: {
     fontSize: 11,
     color: C.textMuted,
@@ -96,5 +97,6 @@ const styles = StyleSheet.create({
   affix: { fontSize: 16, color: C.textMuted, fontWeight: '600', marginRight: 2 },
   suffix: { fontSize: 13, color: C.textMuted },
   value: { fontSize: 20, fontWeight: '700', color: C.text, padding: 0, flex: 1 },
+  valueError: { color: C.accentRed },
   error: { marginTop: 8, fontSize: 11, color: C.accentRed, lineHeight: 15, fontWeight: '600' },
 });
