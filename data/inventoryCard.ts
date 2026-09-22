@@ -1,4 +1,4 @@
-import type { CardMetadata, CompPrices, CompSnapshot, GradeProbabilities, InventoryCard, VisionGradeProbabilities } from '@/data/types';
+import type { CardMetadata, CompPrices, CompSnapshot, CompSnapshotPrices, GradeProbabilities, InventoryCard, VisionGradeProbabilities } from '@/data/types';
 import { calculateEV } from '@/data/evCalculator';
 import { analysisTitle } from '@/data/cardDisplay';
 
@@ -33,6 +33,15 @@ export function visionToEngineProbs(gp?: VisionGradeProbabilities | null): Grade
     psa9,
     psa8,
     below8: total > 100.5 ? 0 : Math.max(0, 100 - total),
+  };
+}
+
+export function snapshotPricesForModeling(prices?: CompSnapshotPrices | null): CompPrices {
+  return {
+    psa10: prices?.psa10 ?? 0,
+    psa9: prices?.psa9 ?? 0,
+    psa8: prices?.psa8 ?? 0,
+    below8: prices?.below8 ?? 0,
   };
 }
 
@@ -105,7 +114,7 @@ export function rebuildInventoryCard(
   const estimatedRawValue =
     patch.estimatedRawValue !== undefined ? patch.estimatedRawValue : card.estimatedRawValue;
   const rawValue = estimatedRawValue && estimatedRawValue > 0 ? estimatedRawValue : 0;
-  const prices = comps?.prices ?? PLACEHOLDER_COMPS;
+  const prices = snapshotPricesForModeling(comps?.prices);
   const ev = calculateEV({
     rawValue,
     gradingFee: patch.gradingFee,

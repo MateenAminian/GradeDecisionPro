@@ -5,7 +5,7 @@ import { presetProfiles } from '@/data/presetProfiles';
 import { analyzeBatchImages, lookupSoldComps } from '@/api/client';
 import { persistImageUri } from '@/utils/persistImage';
 import { analysisTitle } from '@/data/cardDisplay';
-import { PLACEHOLDER_COMPS, createManualInventoryCard, metadataFromLabel, rebuildInventoryCard } from '@/data/inventoryCard';
+import { PLACEHOLDER_COMPS, createManualInventoryCard, metadataFromLabel, rebuildInventoryCard, snapshotPricesForModeling } from '@/data/inventoryCard';
 import { DEFAULT_TIER_ID, getTier } from '@/data/graders';
 import {
   DEFAULT_ASKING_HAIRCUT_PCT,
@@ -155,7 +155,7 @@ interface AppState {
       predictedEvAtDecide?: number | null;
     },
   ) => void;
-  refreshInventoryComps: (id: string, metadata?: CardMetadata) => Promise<void>;
+  refreshInventoryComps: (id: string, metadata?: CardMetadata, options?: { refresh?: boolean }) => Promise<void>;
   saveDecideSnapshot: (entry: Omit<DecideHistoryEntry, 'id' | 'savedAt'>) => void;
   clearDecideHistory: () => void;
   resetExample: () => void;
@@ -438,7 +438,7 @@ export const useAppStore = create<AppState>()(
         set({
           inventory: get().inventory.map((card) => {
             if (card.id !== id) return card;
-            const current = card.comps?.prices ?? PLACEHOLDER_COMPS;
+            const current = snapshotPricesForModeling(card.comps?.prices);
             const prices = patch.prices ?? current;
             const editedSource = card.comps?.source?.startsWith('ebay')
               ? 'ebay-live-edited'
@@ -466,7 +466,7 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      refreshInventoryComps: async (id, metadata) => {
+      refreshInventoryComps: async (id, metadata, options) => {
         const s = get();
         const card = s.inventory.find((item) => item.id === id);
         if (!card) throw new Error('Card not found');
@@ -478,8 +478,8 @@ export const useAppStore = create<AppState>()(
           parallel: '',
         };
         const snapshot = await lookupSoldComps(meta, {
-          fallback: card.comps?.prices ?? PLACEHOLDER_COMPS,
-          refresh: true,
+          fallback: snapshotPricesForModeling(card.comps?.prices),
+          refresh: options?.refresh ?? false,
         });
         const withBasis = {
           ...snapshot,

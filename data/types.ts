@@ -16,6 +16,13 @@ export interface CompPrices {
   below8: number;
 }
 
+export interface CompSnapshotPrices {
+  psa10: number | null;
+  psa9: number | null;
+  psa8: number | null;
+  below8: number | null;
+}
+
 export interface CompSamples {
   raw: number;
   psa10: number;
@@ -40,7 +47,7 @@ export interface CompSnapshot {
   source: string;
   query: string;
   listingCount: number;
-  prices: CompPrices;
+  prices: CompSnapshotPrices;
   samples: CompSamples;
   fetchedAt?: string | null;
   raw?: number | null;

@@ -212,7 +212,7 @@ export async function lookupSoldComps(
         set: meta.set ?? '',
         cardNumber: meta.cardNumber ?? '',
         parallel: meta.parallel ?? '',
-        refresh: options?.refresh ?? true,
+        refresh: options?.refresh ?? false,
         fallback: options?.fallback,
       }),
     });
