@@ -21,6 +21,13 @@ class CompSnapshotPrices(CamelModel):
     psa8: float | None = Field(None, ge=0)
     below8: float | None = Field(None, ge=0)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_comp_prices(cls, v: object) -> object:
+        if isinstance(v, CompPrices):
+            return v.model_dump()
+        return v
+
 
 class CompListing(CamelModel):
     title: str
