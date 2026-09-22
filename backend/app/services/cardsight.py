@@ -7,6 +7,7 @@ client receives normalized comp snapshots and never sees the vendor key.
 from __future__ import annotations
 
 import asyncio
+import copy
 import os
 import re
 import statistics
@@ -17,7 +18,7 @@ from typing import Any
 import httpx
 
 from app.models import CompPrices
-from app.schemas import CardMetadata, CompListing, CompSamples, CompSnapshot
+from app.schemas import CardMetadata, CompListing, CompSamples, CompSnapshot, CompSnapshotPrices
 from app.services.ebay import search_query
 
 BASE_URL = "https://api.cardsight.ai"
@@ -25,6 +26,7 @@ DEFAULT_PERIOD = "90d"
 DEFAULT_LIMIT = 50
 MIN_BUCKET_SAMPLES = 3
 MAX_SAVED_LISTINGS = 40
+DEFAULT_CACHE_TTL_SECONDS = 6 * 60 * 60
 
 AUTO_RE = re.compile(r"\bauto(?:graph)?\b", re.I)
 PARALLEL_RE = re.compile(
@@ -38,7 +40,9 @@ PARALLEL_RE = re.compile(
 )
 
 _rate_lock = asyncio.Lock()
+_cache_lock = asyncio.Lock()
 _last_request_at = 0.0
+_sold_cache: dict[tuple[str, str, str, str, str, str, str], tuple[float, SoldComps]] = {}
 
 
 class CardSightError(RuntimeError):
@@ -47,6 +51,17 @@ class CardSightError(RuntimeError):
 
 def cardsight_configured() -> bool:
     return bool(os.getenv("CARDSIGHTAI_API_KEY", "").strip())
+
+
+def _cache_ttl_seconds() -> float:
+    raw = os.getenv("CARDSIGHT_CACHE_TTL_SECONDS", "").strip()
+    if not raw:
+        return DEFAULT_CACHE_TTL_SECONDS
+    try:
+        ttl = float(raw)
+    except ValueError:
+        return DEFAULT_CACHE_TTL_SECONDS
+    return max(0.0, ttl)
 
 
 def _clean(text: object) -> str:
@@ -145,11 +160,11 @@ class SoldComps:
             basis="sold",
             query=self.query,
             listingCount=self.listing_count,
-            prices=CompPrices(
-                psa10=self.psa10 if self.psa10 is not None else fallback.psa10,
-                psa9=self.psa9 if self.psa9 is not None else fallback.psa9,
-                psa8=self.psa8 if self.psa8 is not None else fallback.psa8,
-                below8=self.below8 if self.below8 is not None else fallback.below8,
+            prices=CompSnapshotPrices(
+                psa10=self.psa10,
+                psa9=self.psa9,
+                psa8=self.psa8,
+                below8=self.below8,
             ),
             samples=CompSamples(
                 raw=self.samples.get("raw", 0),
@@ -165,7 +180,7 @@ class SoldComps:
             minSamples=MIN_BUCKET_SAMPLES,
             fallbackBuckets=self.thin_buckets,
             fallbackReason=(
-                f"CardSight sold-auction buckets with fewer than {MIN_BUCKET_SAMPLES} sales use asking-price fallback."
+                f"CardSight sold-auction buckets with fewer than {MIN_BUCKET_SAMPLES} sales are insufficient; enter comps manually."
                 if self.thin_buckets
                 else None
             ),
@@ -249,23 +264,76 @@ async def _throttle() -> None:
         _last_request_at = time.monotonic()
 
 
-async def lookup_sold_comps(meta: CardMetadata, *, period: str = DEFAULT_PERIOD, limit: int = DEFAULT_LIMIT) -> SoldComps | None:
+def _cache_key(meta: CardMetadata, *, period: str, listing_type: str) -> tuple[str, str, str, str, str, str, str]:
+    return (
+        _clean(meta.year).lower(),
+        _clean(meta.player).lower(),
+        _clean(meta.set).lower(),
+        _clean(meta.card_number).lower(),
+        _clean(meta.parallel).lower(),
+        period,
+        listing_type,
+    )
+
+
+async def _cached_sold(key: tuple[str, str, str, str, str, str, str]) -> SoldComps | None:
+    ttl = _cache_ttl_seconds()
+    if ttl <= 0:
+        return None
+    async with _cache_lock:
+        cached = _sold_cache.get(key)
+        if not cached:
+            return None
+        saved_at, sold = cached
+        if time.time() - saved_at > ttl:
+            _sold_cache.pop(key, None)
+            return None
+        return copy.deepcopy(sold)
+
+
+async def _store_sold(key: tuple[str, str, str, str, str, str, str], sold: SoldComps) -> None:
+    if _cache_ttl_seconds() <= 0:
+        return
+    async with _cache_lock:
+        _sold_cache[key] = (time.time(), copy.deepcopy(sold))
+
+
+def clear_cardsight_cache() -> None:
+    _sold_cache.clear()
+
+
+async def lookup_sold_comps(
+    meta: CardMetadata,
+    *,
+    period: str = DEFAULT_PERIOD,
+    limit: int = DEFAULT_LIMIT,
+    listing_type: str = "auction",
+    refresh: bool = False,
+) -> SoldComps | None:
     if not cardsight_configured():
         return None
     query = search_query(meta)
     if not query:
         return None
+    key = _cache_key(meta, period=period, listing_type=listing_type)
+
+    if not refresh:
+        cached = await _cached_sold(key)
+        if cached is not None:
+            return cached
 
     await _throttle()
     timeout = httpx.Timeout(25.0, connect=10.0)
     async with httpx.AsyncClient(timeout=timeout, base_url=BASE_URL) as client:
         response = await client.get(
             "/v1/pricing/search",
-            params={"q": query, "listing_type": "auction", "period": period, "limit": limit},
+            params={"q": query, "listing_type": listing_type, "period": period, "limit": limit},
             headers={"X-API-Key": os.getenv("CARDSIGHTAI_API_KEY", "").strip()},
         )
     try:
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         raise CardSightError(f"CardSight HTTP {exc.response.status_code}") from exc
-    return aggregate_sold_comps(_extract_rows(response.json()), meta, query=query, period=period)
+    sold = aggregate_sold_comps(_extract_rows(response.json()), meta, query=query, period=period)
+    await _store_sold(key, sold)
+    return sold

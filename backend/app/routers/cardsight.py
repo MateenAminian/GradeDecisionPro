@@ -1,4 +1,4 @@
-"""Sold-auction comps route backed by CardSight with eBay asking fallback."""
+"""Sold-auction comps route backed by CardSight."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from fastapi import APIRouter, HTTPException
 
 from app.models import CompPrices
 from app.schemas import CardMetadata, CompSnapshot, LookupCompsRequest
-from app.services.cardsight import CardSightError, cardsight_configured, lookup_sold_comps
-from app.services.ebay import lookup_live_comps, search_query
+from app.services.cardsight import CardSightError, DEFAULT_PERIOD, MIN_BUCKET_SAMPLES, cardsight_configured, lookup_sold_comps
+from app.services.ebay import search_query
 
 logger = logging.getLogger(__name__)
 
@@ -28,62 +28,29 @@ def _zero_comps() -> CompPrices:
     return CompPrices(psa10=0, psa9=0, psa8=0, below8=0)
 
 
-def _bucket_price(snapshot: CompSnapshot, bucket: str) -> float | None:
-    if bucket == "raw":
-        return snapshot.raw
-    return getattr(snapshot.prices, bucket)
-
-
-def _set_bucket_price(snapshot: CompSnapshot, bucket: str, value: float | None) -> None:
-    if value is None:
-        return
-    if bucket == "raw":
-        snapshot.raw = value
-    else:
-        setattr(snapshot.prices, bucket, value)
-
-
-def _fallback_text(buckets: list[str], reason: str) -> str:
+def _insufficient_text(buckets: list[str], reason: str) -> str:
     labels = [BUCKET_LABELS.get(bucket, bucket) for bucket in buckets]
     suffix = f" for {', '.join(labels)}" if labels else ""
-    return f"{reason}; using eBay asking fallback{suffix}."
+    return f"{reason}; sold comps are insufficient{suffix}. Enter comps manually."
 
 
-async def _asking_snapshot(meta: CardMetadata, fallback: CompPrices, *, refresh: bool, reason: str, buckets: list[str] | None = None) -> CompSnapshot:
-    live = await lookup_live_comps(meta, refresh=refresh)
-    if live:
-        snapshot = live.to_snapshot(fallback)
-    else:
-        snapshot = CompSnapshot(source="placeholder", query=search_query(meta), listingCount=0, prices=fallback)
-    snapshot.source = f"{snapshot.source}-fallback" if snapshot.source != "placeholder" else "placeholder-fallback"
-    snapshot.basis = "asking" if snapshot.source.startswith("ebay") else "manual"
-    snapshot.fallback_source = "ebay"
+def _empty_sold_snapshot(meta: CardMetadata, *, reason: str, buckets: list[str] | None = None) -> CompSnapshot:
+    snapshot = CompSnapshot(
+        source="cardsight-sold-unavailable",
+        basis="sold",
+        query=search_query(meta),
+        listingCount=0,
+        prices={"psa10": None, "psa9": None, "psa8": None, "below8": None},
+        period=DEFAULT_PERIOD,
+        minSamples=MIN_BUCKET_SAMPLES,
+    )
     snapshot.fallback_buckets = buckets or ["raw", "psa10", "psa9", "psa8", "below8"]
-    snapshot.fallback_reason = _fallback_text(snapshot.fallback_buckets, reason)
+    snapshot.fallback_reason = _insufficient_text(snapshot.fallback_buckets, reason)
     return snapshot
 
 
-async def _fill_thin_buckets(snapshot: CompSnapshot, meta: CardMetadata, fallback: CompPrices, *, refresh: bool) -> CompSnapshot:
-    thin = list(snapshot.fallback_buckets)
-    if not thin:
-        return snapshot
-    try:
-        asking = await lookup_live_comps(meta, refresh=refresh)
-    except Exception:
-        logger.exception("eBay asking fallback failed after thin CardSight comps")
-        asking = None
-    if not asking:
-        snapshot.fallback_source = "provided"
-        return snapshot
-
-    asking_snapshot = asking.to_snapshot(fallback)
-    for bucket in thin:
-        _set_bucket_price(snapshot, bucket, _bucket_price(asking_snapshot, bucket))
-
-    snapshot.fallback_source = "ebay"
-    snapshot.fallback_reason = _fallback_text(thin, "CardSight sold-auction sample is thin")
-    snapshot.listings = (snapshot.listings + (asking_snapshot.listings or []))[:40]
-    return snapshot
+def _graded_thin_count(snapshot: CompSnapshot) -> int:
+    return sum(1 for bucket in ("psa10", "psa9", "psa8", "below8") if bucket in snapshot.fallback_buckets)
 
 
 @router.post("/cardsight/comps")
@@ -100,24 +67,32 @@ async def cardsight_comps(body: LookupCompsRequest) -> CompSnapshot:
 
     fallback = body.fallback or _zero_comps()
     if not cardsight_configured():
-        return await _asking_snapshot(
+        return _empty_sold_snapshot(
             meta,
-            fallback,
-            refresh=body.refresh,
             reason="CardSight API key is not configured on the backend",
         )
 
     try:
-        sold = await lookup_sold_comps(meta)
+        sold = await lookup_sold_comps(meta, refresh=body.refresh)
     except CardSightError as exc:
         logger.warning("CardSight comps lookup failed: %s", exc)
-        return await _asking_snapshot(meta, fallback, refresh=body.refresh, reason="CardSight sold comps failed")
+        return _empty_sold_snapshot(meta, reason="CardSight sold comps failed")
     except Exception as exc:
         logger.exception("Unexpected CardSight comps lookup failure")
-        return await _asking_snapshot(meta, fallback, refresh=body.refresh, reason="CardSight sold comps failed")
+        return _empty_sold_snapshot(meta, reason="CardSight sold comps failed")
 
     if sold is None:
-        return await _asking_snapshot(meta, fallback, refresh=body.refresh, reason="CardSight returned no searchable identity")
+        return _empty_sold_snapshot(meta, reason="CardSight returned no searchable identity")
 
     snapshot = sold.to_snapshot(fallback)
-    return await _fill_thin_buckets(snapshot, meta, fallback, refresh=body.refresh)
+    if _graded_thin_count(snapshot) > 0 and sold.period != "1y":
+        try:
+            deepened = await lookup_sold_comps(meta, period="1y", refresh=body.refresh)
+        except Exception:
+            logger.exception("CardSight 1y deepen retry failed")
+            deepened = None
+        if deepened is not None:
+            deepened_snapshot = deepened.to_snapshot(fallback)
+            if _graded_thin_count(deepened_snapshot) < _graded_thin_count(snapshot):
+                snapshot = deepened_snapshot
+    return snapshot

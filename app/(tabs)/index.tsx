@@ -38,6 +38,10 @@ function moneyText(n: number): string {
   return n > 0 ? String(n) : '';
 }
 
+function soldPrice(value: number | null | undefined): number {
+  return value ?? 0;
+}
+
 export default function CalculatorScreen() {
   const store = useAppStore();
   const { width } = useWindowDimensions();
@@ -279,21 +283,27 @@ export default function CalculatorScreen() {
     try {
       const snapshot = await lookupSoldComps(meta, {
         fallback: enteredComps,
-        refresh: true,
+        refresh: false,
       });
       const nextRaw = snapshot.raw && snapshot.raw > 0 ? snapshot.raw : rawValue;
+      const snapshotComps = {
+        psa10: soldPrice(snapshot.prices.psa10),
+        psa9: soldPrice(snapshot.prices.psa9),
+        psa8: soldPrice(snapshot.prices.psa8),
+        below8: soldPrice(snapshot.prices.below8),
+      };
       setRawText(moneyText(nextRaw));
-      setC10(moneyText(snapshot.prices.psa10));
-      setC9(moneyText(snapshot.prices.psa9));
-      setC8(moneyText(snapshot.prices.psa8));
-      setC7(moneyText(snapshot.prices.below8));
+      setC10(moneyText(snapshotComps.psa10));
+      setC9(moneyText(snapshotComps.psa9));
+      setC8(moneyText(snapshotComps.psa8));
+      setC7(moneyText(snapshotComps.below8));
       store.setCalculator({
         cardName: cardName.trim(),
         rawValue: nextRaw,
-        psa10Comp: snapshot.prices.psa10,
-        psa9Comp: snapshot.prices.psa9,
-        psa8Comp: snapshot.prices.psa8,
-        below8Comp: snapshot.prices.below8,
+        psa10Comp: snapshotComps.psa10,
+        psa9Comp: snapshotComps.psa9,
+        psa8Comp: snapshotComps.psa8,
+        below8Comp: snapshotComps.below8,
         recentSoldCount: snapshot.basis === 'sold' || snapshot.source.startsWith('cardsight') ? snapshot.listingCount : store.recentSoldCount,
       });
       setCompScanMessage(

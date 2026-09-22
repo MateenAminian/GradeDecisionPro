@@ -124,7 +124,7 @@ export default function GradeReport({
                   { l: 'Raw', v: card.estimatedRawValue ?? 0, n: card.comps.samples.raw },
                 ].map((p) => (
                   <RNView key={p.l} style={styles.probChip}>
-                    <Text style={styles.probValue}>${p.v.toFixed(0)}</Text>
+                    <Text style={styles.probValue}>{p.v == null ? '—' : `$${p.v.toFixed(0)}`}</Text>
                     <Text style={styles.probLabel}>{p.l}{p.n ? ` · ${p.n}` : ''}</Text>
                   </RNView>
                 ))}

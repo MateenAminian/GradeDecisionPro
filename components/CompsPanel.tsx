@@ -17,9 +17,21 @@ const BUCKETS: { id: string; label: string; color: string }[] = [
   { id: 'raw', label: 'Raw', color: C.accent },
 ];
 
+const BUCKET_LABELS: Record<string, string> = {
+  raw: 'raw',
+  psa10: 'PSA 10',
+  psa9: 'PSA 9',
+  psa8: 'PSA 8',
+  below8: 'below 8',
+};
+
 function num(text: string): number {
   const n = parseFloat(text.replace(/[^0-9.]/g, ''));
   return Number.isFinite(n) ? n : 0;
+}
+
+function priceText(value: number | null | undefined): string {
+  return value == null ? '' : String(value);
 }
 
 function openListing(url: string) {
@@ -58,11 +70,12 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
   const [parallel, setParallel] = useState(card.metadata?.parallel ?? '');
   const [cardNumber, setCardNumber] = useState(card.metadata?.cardNumber ?? '');
   const [rawText, setRawText] = useState(String(card.estimatedRawValue ?? 0));
-  const [c10, setC10] = useState(String(card.comps?.prices.psa10 ?? 0));
-  const [c9, setC9] = useState(String(card.comps?.prices.psa9 ?? 0));
-  const [c8, setC8] = useState(String(card.comps?.prices.psa8 ?? 0));
-  const [c7, setC7] = useState(String(card.comps?.prices.below8 ?? 0));
+  const [c10, setC10] = useState(priceText(card.comps?.prices.psa10));
+  const [c9, setC9] = useState(priceText(card.comps?.prices.psa9));
+  const [c8, setC8] = useState(priceText(card.comps?.prices.psa8));
+  const [c7, setC7] = useState(priceText(card.comps?.prices.below8));
   const [scanning, setScanning] = useState(false);
+  const [forceRefreshing, setForceRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,10 +85,10 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
     setParallel(card.metadata?.parallel ?? '');
     setCardNumber(card.metadata?.cardNumber ?? '');
     setRawText(String(card.estimatedRawValue ?? 0));
-    setC10(String(card.comps?.prices.psa10 ?? 0));
-    setC9(String(card.comps?.prices.psa9 ?? 0));
-    setC8(String(card.comps?.prices.psa8 ?? 0));
-    setC7(String(card.comps?.prices.below8 ?? 0));
+    setC10(priceText(card.comps?.prices.psa10));
+    setC9(priceText(card.comps?.prices.psa9));
+    setC8(priceText(card.comps?.prices.psa8));
+    setC7(priceText(card.comps?.prices.below8));
   }, [card.id, card.comps?.fetchedAt]);
 
   const metadataFromFields = (): CardMetadata => ({
@@ -102,18 +115,23 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
     });
   };
 
-  const scan = async () => {
-    if (scanning) return;
+  const scan = async (refresh = false) => {
+    if (scanning || forceRefreshing) return;
     const meta = metadataFromFields();
-    setScanning(true);
+    if (refresh) {
+      setForceRefreshing(true);
+    } else {
+      setScanning(true);
+    }
     setError(null);
     persistIdentity(meta);
     try {
-      await refreshInventoryComps(card.id, meta);
+      await refreshInventoryComps(card.id, meta, { refresh });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sold comps lookup failed');
     } finally {
       setScanning(false);
+      setForceRefreshing(false);
     }
   };
 
@@ -141,9 +159,16 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
 
       <GradientButton
         title={scanning ? 'Scanning sold comps…' : 'Scan sold comps'}
-        onPress={scan}
+        onPress={() => scan(false)}
         style={{ marginTop: 4 }}
       />
+      <Pressable
+        onPress={() => scan(true)}
+        disabled={scanning || forceRefreshing}
+        style={styles.refreshLink}
+      >
+        <Text style={styles.refreshText}>{forceRefreshing ? 'Refreshing comps…' : 'Refresh comps (force new CardSight lookup)'}</Text>
+      </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Text style={[styles.sectionLabel, { marginTop: 16 }]}>{sourceLabel(card)}</Text>
@@ -201,6 +226,11 @@ export default function CompsPanel({ card }: { card: InventoryCard }) {
           }}
         />
       </RNView>
+      {card.comps?.fallbackBuckets?.length ? (
+        <Text style={styles.insufficient}>
+          No sold auctions in the window for {card.comps.fallbackBuckets.map((bucket) => BUCKET_LABELS[bucket] ?? bucket).join(', ')} — enter a comp.
+        </Text>
+      ) : null}
       <Text style={styles.hint}>Edit any dollar amount to remodel EV with your own comps. Sample counts are next to each listing group.</Text>
 
       {listings.length === 0 ? (
@@ -293,6 +323,9 @@ const styles = StyleSheet.create({
   hint: { fontSize: 12, color: C.textMuted, lineHeight: 18, marginBottom: 10 },
   query: { fontSize: 12, color: C.textSecondary, marginBottom: 10 },
   fallback: { fontSize: 12, color: C.accentYellow, lineHeight: 18, marginBottom: 10 },
+  insufficient: { fontSize: 12, color: C.accentYellow, lineHeight: 18, marginBottom: 10 },
+  refreshLink: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4 },
+  refreshText: { color: C.accent, fontSize: 12, fontWeight: '700' },
   identityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   field: {
     backgroundColor: C.background,

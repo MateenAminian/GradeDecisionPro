@@ -15,6 +15,20 @@ class CompSamples(CamelModel):
     below8: int = 0
 
 
+class CompSnapshotPrices(CamelModel):
+    psa10: float | None = Field(None, ge=0)
+    psa9: float | None = Field(None, ge=0)
+    psa8: float | None = Field(None, ge=0)
+    below8: float | None = Field(None, ge=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_comp_prices(cls, v: object) -> object:
+        if isinstance(v, CompPrices):
+            return v.model_dump()
+        return v
+
+
 class CompListing(CamelModel):
     title: str
     price: float | None = None
@@ -31,7 +45,7 @@ class CompSnapshot(CamelModel):
     source: str = "placeholder"
     query: str = ""
     listing_count: int = Field(0, alias="listingCount")
-    prices: CompPrices
+    prices: CompSnapshotPrices
     samples: CompSamples = Field(default_factory=CompSamples)
     fetched_at: str | None = Field(None, alias="fetchedAt")
     raw: float | None = None
@@ -50,7 +64,7 @@ class LookupCompsRequest(CamelModel):
     set: str = ""
     card_number: str = Field("", alias="cardNumber")
     parallel: str = ""
-    refresh: bool = True
+    refresh: bool = False
     fallback: CompPrices | None = None
 
 
